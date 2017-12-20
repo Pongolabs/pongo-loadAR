@@ -1,0 +1,87 @@
+﻿<!doctype html>
+
+<html>
+<head>
+  <title>tracking.js -  feature detector with camera</title>
+
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="demo.css">
+
+  <script src="../js/vendor/tracking.js"></script>
+  <script src="../js/vendor/dat.gui.min.js"></script>
+
+  <style>
+  #video {
+    position: absolute;
+    top: -1000px;
+  }
+
+  #canvas {
+    left: 00%;
+    top: 00%;
+    margin-left: 0px;
+    margin-top: 00px;
+    position: absolute;
+  }
+  </style>
+</head>
+<body>
+  <div class="demo-title">
+    <p><a href="http://trackingjs.com" target="_parent">tracking.js</a> － display detected features</p>
+  </div>
+
+  <div class="demo-frame">
+    <div class="demo-container">
+      <video id="video" width="800" height="600" preload autoplay loop muted></video>
+      <canvas id="canvas" width="800" height="600"></canvas>
+    </div>
+  </div>
+
+  <script>
+    var canvas = document.getElementById('canvas');
+    var context = canvas.getContext('2d');
+
+    var FastTracker = function() {
+      FastTracker.base(this, 'constructor');
+    };
+    tracking.inherits(FastTracker, tracking.Tracker);
+
+    tracking.Fast.THRESHOLD = 2;
+    FastTracker.prototype.threshold = tracking.Fast.THRESHOLD;
+
+    FastTracker.prototype.track = function(pixels, width, height) {
+      //stats.begin();
+      var gray = tracking.Image.grayscale(pixels, width, height);
+      var corners = tracking.Fast.findCorners(gray, width, height);
+      //stats.end();
+
+      this.emit('track', {
+        data: corners
+      });
+    };
+
+    var tracker = new FastTracker();
+
+    tracker.on('track', function(event) {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      var corners = event.data;
+
+	  //console.log('corners.length=' + corners.length);
+
+      for (var i = 0; i < corners.length; i += 2) {
+        context.fillStyle = '#f00';
+        context.fillRect(corners[i], corners[i + 1], 2, 2);
+      }
+    });
+
+    tracking.track('#video', tracker, { camera: true });
+
+    // GUI Controllers
+    var gui = new dat.GUI();
+
+    gui.add(tracker, 'threshold', 1, 100).onChange(function(value) {
+      tracking.Fast.THRESHOLD = value;
+    });
+  </script>
+</body>
+</html>

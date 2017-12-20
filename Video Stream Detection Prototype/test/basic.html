@@ -1,0 +1,18 @@
+<html>
+<head>
+<script src="../js/vendor/tesseract.js"></script>
+<script>navigator.mediaDevices.enumerateDevices()
+.then(function(devices) {
+  devices.forEach(function(device) {
+	if (device.kind == "videoinput"){
+		console.log(device.kind + ": " + device.label +
+                " id = " + device.deviceId);
+	}
+    
+  });
+})</script>
+</head>
+<body>
+<input type="file" onchange="Tesseract.recognize(this.files[0]).progress(function(data){console.log(data)}).then(function(data){console.log(data)})">
+</body>
+</html>

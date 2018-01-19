@@ -18,7 +18,10 @@ var canvas;
 var camera;
 var scene;
 var renderer;
-var cube;
+var cube; //currently obsolete
+var groundPlane; // global container for the first discovered plane object
+var groundPlaneMesh; //obsolete.. i think. I might use this later, will represent the 3DPlane in the worldspace
+
 
 var colors = [
   new THREE.Color( 0xffffff ),
@@ -31,7 +34,9 @@ var colors = [
   new THREE.Color( 0x000000 )
 ];
 
-var BOX_SIZE = 0.2;
+var BOX_SIZE = 0.2; //currently obsolete
+var GROUND_SCALE = 10; //the factor by which to multiply the initial ground plane
+var RENDER_GROUND = true; // toggle rendering planes or not as a 3D object for debugging
 
 function debug(message) {
 
@@ -39,8 +44,9 @@ function debug(message) {
        console.log(message);
     }
 
-    var html = $("#debug").html();
-    $("#debug").html(html + message + "<br>" );
+    var text = $("#debug").text();
+    $("#debug").text(text + message + "\n");
+    $("#debug")[0].scrollTop = $("#debug")[0].scrollHeight; 
 }
 
 /* ======================================================================
@@ -65,7 +71,12 @@ THREE.ARUtils.getARDisplay().then(function (display) {
 function init() {
 
   // Turn on the debugging panel
-  var arDebug = new THREE.ARDebug(vrDisplay);
+    scene = new THREE.Scene();
+    var arDebug = new THREE.ARDebug(vrDisplay, scene, {
+        showLastHit: true,
+        showPoseStatus: true,
+        showPlanes: RENDER_GROUND
+    });
   document.body.appendChild(arDebug.getElement());
 
   // Setup the three.js rendering environment
@@ -75,7 +86,7 @@ function init() {
   renderer.autoClear = false;
   canvas = renderer.domElement;
   document.body.appendChild(canvas);
-  scene = new THREE.Scene();
+  
 
   // Creating the ARView, which is the object that handles
   // the rendering of the camera stream behind the three.js
@@ -100,6 +111,7 @@ function init() {
   // real world and virtual world in sync.
   vrControls = new THREE.VRControls(camera);
 
+  /*
   // Create the cube geometry and add it to the scene. Set the position
   // to (Infinity, Infinity, Infinity) so that it won't appear visible
   // until the first hit is found, and move it there
@@ -120,15 +132,45 @@ function init() {
   geometry.translate( 0, BOX_SIZE / 2, 0 );
   var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors });
   cube = new THREE.Mesh(geometry, material);
+    
 
   // Place the cube very far to initialize
   cube.position.set(10000, 10000, 10000);
-
   scene.add(cube);
+    */
 
   // Bind our event handlers
   window.addEventListener('resize', onWindowResize, false);
   canvas.addEventListener('touchstart', onClick, false);
+
+    // Logs the addition of the first discovered plane
+    
+  vrDisplay.addEventListener('planesadded', e => {
+      debug(`Planes added for ${e.display}`);
+      e.planes.forEach(plane => {
+          debug(`
+            Added plane ${plane.identifier} at ${plane.modelMatrix}, 
+            with extent ${plane.extent} with vertices ${plane.vertices}
+         `);
+         groundPlane = plane; //saves a global instance of the VRPlane we will use as the ground
+         debug("Ground plane initialised, creating mesh.. ");
+
+         
+
+         try {
+             createPlane( groundPlane );
+             debug("Success");
+         }
+         catch (error) {
+             debug("Failed");
+         }
+      });
+
+  }, { once: true });
+
+  
+  
+    
 
   // Kick off the render loop!
   update();
@@ -138,8 +180,7 @@ function init() {
  * The render loop, called once per frame. Handles updating
  * our scene and rendering.
  */
-function update() 
-{
+function update() {
   // Clears color from the frame before rendering the camera (arView) or scene.
   renderer.clearColor();
 
@@ -178,12 +219,24 @@ function onWindowResize () {
  * When clicking on the screen, fire a ray from where the user clicked
  * on the screen and if a hit is found, place a cube there.
  */
+
+
 function onClick (e) {
   // If we don't have a touches object, abort
   // TODO: is this necessary?
   if (!e.touches[0]) {
     return;
-  }
+    }
+
+  debug("touch");
+  
+      debug(`
+    Found plane ${groundPlane.identifier} 
+  `);
+  
+
+    /** REMOVED BY AIDAN to test a different onClick function
+    This onClick moves the spawned box to our 'hit' matrix returned by a raytrace, taken from ARCore examples
 
   // Inspect the event object and generate normalize screen coordinates
   // (between 0 and 1) for the screen position.
@@ -206,8 +259,35 @@ function onClick (e) {
                                           // the cube directly to the hit position
                                    false); // Whether or not we also apply orientation
 
-  }
+  } */
 }
+
+function createPlane(plane)
+{
+    //Generates a mesh of a plane and matches it over the existing groundPlane
+    let mesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(plane.extent[0], plane.extent[1], 4, 4), // Plane.extent is an x & y bounding box of the VRPlane
+        new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }) // A wireframe of 4*4 helps visualise the large mesh
+    );
+
+    
+    mesh.material.transparent = !RENDER_GROUND; // Future proofing to turn off visual debugging
+    if (mesh.material.transparent) { mesh.material.opacity = 0; }
+
+    let rotation = new THREE.Matrix4();
+    rotation.makeRotationX(- Math.PI / 2);
+
+    let matrix = new THREE.Matrix4();
+    matrix.fromArray(plane.modelMatrix);
+    matrix.multiply(rotation);
+    mesh.applyMatrix(matrix);
+    mesh.scale.set(GROUND_SCALE, GROUND_SCALE, GROUND_SCALE);
+
+    mesh.name = `plane-${plane.identifier}`;
+    scene.add(mesh);
+}
+
+
 
 /* ======================================================================
    CONTROL

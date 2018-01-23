@@ -18,9 +18,10 @@ var canvas;
 var camera;
 var scene;
 var renderer;
-var cube; //currently obsolete
+var truckMesh; //the 3D cube used to represent the truck in the 3D space
 var groundPlane; // global container for the first discovered plane object
-var groundPlaneMesh; //obsolete.. i think. I might use this later, will represent the 3DPlane in the worldspace
+var groundPlaneMesh; // represents the 3DPlane in the worldspace
+var cursor;
 
 
 var colors = [
@@ -34,7 +35,9 @@ var colors = [
   new THREE.Color( 0x000000 )
 ];
 
-var BOX_SIZE = 0.2; //currently obsolete
+var TRUCK_MAX_WIDTH = 2.5;
+var TRUCK_MAX_HEIGHT = 4;
+var TRUCK_MAX_DEPTH = 12.5;
 var GROUND_SCALE = 10; //the factor by which to multiply the initial ground plane
 var RENDER_GROUND = true; // toggle rendering planes or not as a 3D object for debugging
 
@@ -78,7 +81,7 @@ function init() {
         showPlanes: RENDER_GROUND
     });
   document.body.appendChild(arDebug.getElement());
-
+  
   // Setup the three.js rendering environment
   renderer = new THREE.WebGLRenderer({ alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -111,11 +114,11 @@ function init() {
   // real world and virtual world in sync.
   vrControls = new THREE.VRControls(camera);
 
-  /*
+  
   // Create the cube geometry and add it to the scene. Set the position
   // to (Infinity, Infinity, Infinity) so that it won't appear visible
   // until the first hit is found, and move it there
-  var geometry = new THREE.BoxGeometry(BOX_SIZE, BOX_SIZE, BOX_SIZE);
+  var geometry = new THREE.BoxGeometry(TRUCK_MAX_WIDTH, TRUCK_MAX_HEIGHT, TRUCK_MAX_DEPTH);
   var faceIndices = ['a', 'b', 'c'];
   for (var i = 0; i < geometry.faces.length; i++) {
     var f  = geometry.faces[i];
@@ -129,22 +132,32 @@ function init() {
   // this will help make it appear to be sitting on top of the real-
   // world surface.
   // geometry.applyMatrix( new THREE.Matrix4().setTranslation( 0, BOX_SIZE / 2, 0 ) );
-  geometry.translate( 0, BOX_SIZE / 2, 0 );
+  geometry.translate( 0, TRUCK_MAX_HEIGHT / 2, 0 );
   var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors });
-  cube = new THREE.Mesh(geometry, material);
+  truckMesh = new THREE.Mesh(geometry, material);
     
 
   // Place the cube very far to initialize
-  cube.position.set(10000, 10000, 10000);
-  scene.add(cube);
-    */
+  truckMesh.position.set(10000, 10000, 10000);
+  truckMesh.scale.set(0.5, 0.5, 0.5); //set the scale to half the truck, for easier debugging
+  scene.add(truckMesh);
+
+  // Raycast debugger object SCHEDULED FOR DELETE
+    /*
+   cursor = new THREE.Mesh(
+      new THREE.CubeGeometry(0.1, 0.3, 0.2), // Plane.extent is an x & y bounding box of the VRPlane
+      new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: false }) // A wireframe of 4*4 helps visualise the large mesh
+  );
+   scene.add(cursor); */
+  
+    
 
   // Bind our event handlers
   window.addEventListener('resize', onWindowResize, false);
   canvas.addEventListener('touchstart', onClick, false);
 
     // Logs the addition of the first discovered plane
-    
+  debug("Searching for a plane. . .");
   vrDisplay.addEventListener('planesadded', e => {
       debug(`Planes added for ${e.display}`);
       e.planes.forEach(plane => {
@@ -153,7 +166,7 @@ function init() {
             with extent ${plane.extent} with vertices ${plane.vertices}
          `);
          groundPlane = plane; //saves a global instance of the VRPlane we will use as the ground
-         debug("Ground plane initialised, creating mesh.. ");
+         debug("Ground plane initialised, creating mesh. . .");
 
          
 
@@ -166,10 +179,7 @@ function init() {
          }
       });
 
-  }, { once: true });
-
-  
-  
+    }, { once: true });
     
 
   // Kick off the render loop!
@@ -202,6 +212,7 @@ function update() {
   // Kick off the requestAnimationFrame to call this function
   // when a new VRDisplay frame is rendered
   vrDisplay.requestAnimationFrame(update);
+    
 }
 
 /**
@@ -222,26 +233,26 @@ function onWindowResize () {
 
 
 function onClick (e) {
-  // If we don't have a touches object, abort
-  // TODO: is this necessary?
-  if (!e.touches[0]) {
-    return;
+    // If we don't have a touches object, abort
+    // TODO: is this necessary?
+    if (!e.touches[0]) {
+        return;
     }
 
-  debug("touch");
+    debug("touch");
   
-      debug(`
-    Found plane ${groundPlane.identifier} 
-  `);
-  
+    var x = e.touches[0].pageX / window.innerWidth *2 -1;
+    var y = e.touches[0].pageY / window.innerHeight *-2 +1;
 
-    /** REMOVED BY AIDAN to test a different onClick function
+    debug(`Casting a ray from ${x},${y}`);
+    placeObjectAtCast(0, 0, truckMesh);
+
+    /** REMOVED BY AIDAN to test a different onClick function SCHEDULED FOR DELETE
     This onClick moves the spawned box to our 'hit' matrix returned by a raytrace, taken from ARCore examples
 
   // Inspect the event object and generate normalize screen coordinates
   // (between 0 and 1) for the screen position.
-  var x = e.touches[0].pageX / window.innerWidth;
-  var y = e.touches[0].pageY / window.innerHeight;
+  
 
   // Send a ray from the point of click to the real world surface
   // and attempt to find a hit. `hitTest` returns an array of potential
@@ -269,7 +280,6 @@ function createPlane(plane)
         new THREE.PlaneGeometry(plane.extent[0], plane.extent[1], 4, 4), // Plane.extent is an x & y bounding box of the VRPlane
         new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }) // A wireframe of 4*4 helps visualise the large mesh
     );
-
     
     mesh.material.transparent = !RENDER_GROUND; // Future proofing to turn off visual debugging
     if (mesh.material.transparent) { mesh.material.opacity = 0; }
@@ -285,6 +295,48 @@ function createPlane(plane)
 
     mesh.name = `plane-${plane.identifier}`;
     scene.add(mesh);
+    groundPlaneMesh = mesh;
+}
+
+function placeObjectAtCast( normalx, normaly, object)
+{
+    // x and y are normalised values between -1 and 1 that mimic the screen position to cast the ray from
+    // object is the 3D model to place at the returned coordinates
+    if (groundPlaneMesh === undefined) {
+        debug("Initial ground plane isn't yet initialised!");
+        return;
+    }
+
+    // Initialise the raycaster object
+    var raycaster = new THREE.Raycaster();
+    var coords = new THREE.Vector2( normalx, normaly );
+    raycaster.setFromCamera(coords, camera);
+
+    // Get 3D coords by casting the ray
+    var intersect = raycaster.intersectObject(groundPlaneMesh);
+
+    if (intersect.length === 0) {
+        debug(`No intersects found projecting a ray at ${normalx},${normaly} from point ${camera.matrix}`);
+        return;
+    }
+    debug(`Found local point x:${intersect[0].point.x}, y:${intersect[0].point.y}, z:${intersect[0].point.z}`);
+
+    // Rotate the object according to the required direction so that it sits flat on the plane, facing the user
+    object.setRotationFromEuler(new THREE.Euler(camera.getWorldRotation().x, camera.getWorldRotation().y, camera.getWorldRotation().z));
+
+    // Rotate the 3D object
+    var angle = Math.atan2(
+        camera.position.x - object.position.x,
+        camera.position.z - object.position.z
+    );
+    object.rotation.set(0, angle, 0);
+    
+
+    // Move the object to 3D coords
+    object.position.set(intersect[0].point.x, intersect[0].point.y, intersect[0].point.z);
+    debug(`Moved object to point x:${object.rotation.x}, y:${object.rotation.y}, z:${object.rotation.z}`);
+   
+
 }
 
 

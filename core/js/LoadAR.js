@@ -53,6 +53,7 @@ function debug(message) {
  * a valid display if found. Otherwise, display the unsupported
  * browser message.
  */
+
 THREE.ARUtils.getARDisplay().then(function (display) {
   if (display) {
     vrDisplay = display;
@@ -73,6 +74,7 @@ function init() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.autoClear = false;
+
   canvas = renderer.domElement;
   document.body.appendChild(canvas);
   scene = new THREE.Scene();
@@ -178,7 +180,8 @@ function onWindowResize () {
  * When clicking on the screen, fire a ray from where the user clicked
  * on the screen and if a hit is found, place a cube there.
  */
-function onClick (e) {
+function onClick (e) 
+{
   // If we don't have a touches object, abort
   // TODO: is this necessary?
   if (!e.touches[0]) {
@@ -198,6 +201,7 @@ function onClick (e) {
   // If a hit is found, just use the first one
   if (hits && hits.length) {
     var hit = hits[0];
+
     // Use the `placeObjectAtHit` utility to position
     // the cube where the hit occurred
     THREE.ARUtils.placeObjectAtHit(cube,  // The object to place
@@ -219,6 +223,6 @@ $(document).ready(
         debug("LoadAR start");
 
         // initialize AR stuff
-        init();
+        //init();
 
 });

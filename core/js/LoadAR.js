@@ -156,31 +156,47 @@ function init() {
   window.addEventListener('resize', onWindowResize, false);
   canvas.addEventListener('touchstart', onClick, false);
 
-    // Logs the addition of the first discovered plane
+    // Logs the addition of the first discovered plane and creates a mesh to use as the ground, places it overlapping the initial plane
   debug("Searching for a plane. . .");
   vrDisplay.addEventListener('planesadded', e => {
       debug(`Planes added for ${e.display}`);
+
+      groundPlane = null;
+      debug("Creating ground plane mesh. . .");
+      groundPlaneMesh = createPlane();
+      debug("Mesh created succesfully");
+
       e.planes.forEach(plane => {
           debug(`
             Added plane ${plane.identifier} at ${plane.modelMatrix}, 
             with extent ${plane.extent} with vertices ${plane.vertices}
          `);
-         groundPlane = plane; //saves a global instance of the VRPlane we will use as the ground
-         debug("Ground plane initialised, creating mesh. . .");
-
-         
-
-         try {
-             createPlane( groundPlane );
-             debug("Success");
-         }
-         catch (error) {
-             debug("Failed");
-         }
+          groundPlane = plane;
+          updateGroundPlane(plane);
+          
       });
 
-    }, { once: true });
-    
+  }, { once: true });
+  debug("test complete");
+
+  vrDisplay.addEventListener('planesupdated', e => {
+      e.planes.forEach(plane => {
+          // Compares a newly updated plane to the current groundPlane. If it's larger, will update the position of the mesh
+          if (groundPlane.identifier !== plane.identifier && plane.extent[0] * plane.extent[1] > groundPlane.extent[0] * groundPlane.extent[1]) {
+              try {
+                  updateGroundPlane(plane);
+                  groundPlane = plane; //saves a global instance of the VRPlane we will use as the ground
+                  debug(`Larger plane discovered, relocating ground mesh to plane id: ${plane.identifier}`);
+              }
+              catch (error) {
+                  debug("Failed");
+              }
+          }
+
+      });
+      
+  });
+
 
   // Kick off the render loop!
   update();
@@ -273,29 +289,35 @@ function onClick (e) {
   } */
 }
 
-function createPlane(plane)
+function createPlane()
 {
     //Generates a mesh of a plane and matches it over the existing groundPlane
     let mesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(plane.extent[0], plane.extent[1], 4, 4), // Plane.extent is an x & y bounding box of the VRPlane
+        new THREE.PlaneGeometry(1, 1, 4, 4), // 
         new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }) // A wireframe of 4*4 helps visualise the large mesh
     );
-    
+
     mesh.material.transparent = !RENDER_GROUND; // Future proofing to turn off visual debugging
     if (mesh.material.transparent) { mesh.material.opacity = 0; }
-
+    
     let rotation = new THREE.Matrix4();
     rotation.makeRotationX(- Math.PI / 2);
+    mesh.applyMatrix(rotation);
 
-    let matrix = new THREE.Matrix4();
-    matrix.fromArray(plane.modelMatrix);
-    matrix.multiply(rotation);
-    mesh.applyMatrix(matrix);
     mesh.scale.set(GROUND_SCALE, GROUND_SCALE, GROUND_SCALE);
 
-    mesh.name = `plane-${plane.identifier}`;
     scene.add(mesh);
-    groundPlaneMesh = mesh;
+    debug("Mesh succesfully created.");
+    return mesh;
+}
+
+function updateGroundPlane(plane)
+{
+    groundPlaneMesh.name = `plane-${plane.identifier}`;
+    let matrix = new THREE.Matrix4();
+    matrix.fromArray(plane.modelMatrix); //creates a new matrix and transposes it onto our current object, moving it accordingly
+    groundPlaneMesh.applyMatrix(matrix);
+
 }
 
 function placeObjectAtCast( normalx, normaly, object)
@@ -315,14 +337,14 @@ function placeObjectAtCast( normalx, normaly, object)
     // Get 3D coords by casting the ray
     var intersect = raycaster.intersectObject(groundPlaneMesh);
 
-    if (intersect.length === 0) {
+    if (intersect.length === 0) { // Breaks the function if no the raycast returns empty
         debug(`No intersects found projecting a ray at ${normalx},${normaly} from point ${camera.matrix}`);
         return;
     }
-    debug(`Found local point x:${intersect[0].point.x}, y:${intersect[0].point.y}, z:${intersect[0].point.z}`);
+    debug(`Found local point x:${intersect[0].point.x}, y:${intersect[0].point.y}, z:${intersect[0].point.z}, moving object`);
 
-    // Rotate the object according to the required direction so that it sits flat on the plane, facing the user
-    object.setRotationFromEuler(new THREE.Euler(camera.getWorldRotation().x, camera.getWorldRotation().y, camera.getWorldRotation().z));
+    // Move the object to 3D coords
+    object.position.set(intersect[0].point.x, intersect[0].point.y, intersect[0].point.z);
 
     // Rotate the 3D object
     var angle = Math.atan2(
@@ -330,12 +352,6 @@ function placeObjectAtCast( normalx, normaly, object)
         camera.position.z - object.position.z
     );
     object.rotation.set(0, angle, 0);
-    
-
-    // Move the object to 3D coords
-    object.position.set(intersect[0].point.x, intersect[0].point.y, intersect[0].point.z);
-    debug(`Moved object to point x:${object.rotation.x}, y:${object.rotation.y}, z:${object.rotation.z}`);
-   
 
 }
 

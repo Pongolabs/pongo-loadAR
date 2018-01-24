@@ -10,7 +10,81 @@ function OpenALPR () {
   var adapters = {
     'retrievePlate': function (imageDataURL, successFunc, errorFunc) {
       return retrievePlate(imageDataURL, successFunc, errorFunc)
+    },
+    'getNumberPlateFromImageData': function (data) {
+      return getNumberPlateFromImageData(data)
     }
+  }
+
+  /*
+    Get number plate from image and geometrical info
+  */
+  var getNumberPlateFromImageData = function(data) 
+  {
+        var d = new $.Deferred();
+
+        // detect number plate
+        OpenALPR().retrievePlate(data, 
+            function(response) 
+            {
+                //debug("LoadAR: OpenALPR success");
+                debug(response);
+
+                if (!response.results || response.results.length === 0) 
+                {
+                    // failed
+                    return;
+                }
+
+                var result;
+                var object = {};
+
+                for (var key in response.results) {
+                    result = response.results[key];
+
+                    // get first results only
+                    break;
+                }
+
+                if (result)
+                {
+                    // get plate number and coordinates
+                    object.number = result.plate;
+                                        
+                    // get coordinates
+                    if (result.coordinates && 
+                        result.coordinates.length >= 4)
+                    {
+                        var centerX;
+                        var centerY;
+
+                        var point0 = result.coordinates[0];
+                        var point1 = result.coordinates[1];
+                        var point2 = result.coordinates[2];
+                        var point3 = result.coordinates[3];
+
+                        centerX = (point0.x + point1.x + point2.x + point3.x)/4;
+                        centerY = (point0.y + point1.y + point2.y + point3.y)/4;
+
+                        var imageWidth  = response.img_width;
+                        var imageHeight  = response.img_height;
+
+                        object.center = {x: centerX, y: centerY, normalX: (centerX-imageWidth/2)/(imageWidth/2), normalY: (centerY-imageHeight/2)/(imageHeight/2)}
+                    }
+                }
+
+                d.resolve(object);
+            }, 
+            function(error) 
+            {
+                //debug("LoadAR: OpenALPR error");
+                //debug(error);
+
+                d.reject(error);
+
+            });
+
+      return d;
   }
 
   /**
@@ -92,8 +166,10 @@ function OpenALPR () {
     }
   }
 
+
+
   // Return adapters (must be at end of adapter)
-  return adapters
+  return adapters;
 }
 
 //window.exports = PongoOpenALPR

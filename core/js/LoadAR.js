@@ -250,50 +250,25 @@ function onWindowResize () {
 
 function onClick (e) {
     // If we don't have a touches object, abort
-    // TODO: is this necessary?
     if (!e.touches[0]) {
         return;
     }
 
     debug("touch");
-  
-    var x = e.touches[0].pageX / window.innerWidth *2 -1;
-    var y = e.touches[0].pageY / window.innerHeight *-2 +1;
+
+    //normalise input data to be between -1 and 1
+    let x = e.touches[0].pageX / window.innerWidth * 2 - 1;
+    let y = e.touches[0].pageY / window.innerHeight *-2 +1;
 
     debug(`Casting a ray from ${x},${y}`);
-    placeObjectAtCast(0, 0, truckMesh);
-
-    /** REMOVED BY AIDAN to test a different onClick function SCHEDULED FOR DELETE
-    This onClick moves the spawned box to our 'hit' matrix returned by a raytrace, taken from ARCore examples
-
-  // Inspect the event object and generate normalize screen coordinates
-  // (between 0 and 1) for the screen position.
-  
-
-  // Send a ray from the point of click to the real world surface
-  // and attempt to find a hit. `hitTest` returns an array of potential
-  // hits.
-  var hits = vrDisplay.hitTest(x, y);
-
-  // If a hit is found, just use the first one
-  if (hits && hits.length) {
-    var hit = hits[0];
-    // Use the `placeObjectAtHit` utility to position
-    // the cube where the hit occurred
-    THREE.ARUtils.placeObjectAtHit(cube,  // The object to place
-                                   hit,   // The VRHit object to move the cube to
-                                   1,     // Easing value from 0 to 1; we want to move
-                                          // the cube directly to the hit position
-                                   false); // Whether or not we also apply orientation
-
-  } */
+    placeObjectAtCast(x, y, truckMesh);
 }
 
 function createPlane()
 {
     //Generates a mesh of a plane and matches it over the existing groundPlane
     let mesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(1, 1, 4, 4), // 
+        new THREE.CircleGeometry(10, 32), // 
         new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }) // A wireframe of 4*4 helps visualise the large mesh
     );
 
@@ -303,8 +278,7 @@ function createPlane()
     let rotation = new THREE.Matrix4();
     rotation.makeRotationX(- Math.PI / 2);
     mesh.applyMatrix(rotation);
-
-    mesh.scale.set(GROUND_SCALE, GROUND_SCALE, GROUND_SCALE);
+    
 
     scene.add(mesh);
     debug("Mesh succesfully created.");

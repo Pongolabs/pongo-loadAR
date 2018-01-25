@@ -27,12 +27,12 @@ function OpenALPR () {
         OpenALPR().retrievePlate(data, 
             function(response) 
             {
-                //debug("LoadAR: OpenALPR success");
-                debug(response);
+                debug("LoadAR: OpenALPR success");
+                //debug(response);
 
                 if (!response.results || response.results.length === 0) 
                 {
-                    // failed
+                    debug("Failed, no numberplate found");
                     return;
                 }
 
@@ -72,7 +72,7 @@ function OpenALPR () {
                         object.center = {x: centerX, y: centerY, normalX: (centerX-imageWidth/2)/(imageWidth/2), normalY: (centerY-imageHeight/2)/(imageHeight/2)}
                     }
                 }
-
+                
                 d.resolve(object);
             }, 
             function(error) 

@@ -83,7 +83,7 @@ function init() {
   document.body.appendChild(arDebug.getElement());
   
   // Setup the three.js rendering environment
-  renderer = new THREE.WebGLRenderer({ alpha: true });
+  renderer = new THREE.WebGLRenderer({ alpha: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.autoClear = false;
@@ -256,12 +256,38 @@ function onClick (e) {
 
     debug("touch");
 
+    var data = canvas.toDataURL();
+    /* debugging canvas, kept for posterity
+    var img = new Image();
+    img.src = data;
+    document.getElementById("imagedebug").appendChild(img);
+    */
+    debug("Promise called");
+    $.when(OpenALPR().getNumberPlateFromImageData(data))
+        .then(
+        function (response) {
+            // success, check response object
+            // response.number = plate no
+            // response.center = center point of number plate with x,y,normalX, normalY
+            debug(`Number: ${response.number}`);
+            debug(`Normalised screen position: x ${response.center.normalX} & y ${response.center.normalY}`);
+            placeObjectAtCast(response.center.normalX, response.center.normalY, truckMesh);
+
+        },
+        function (error) {
+            //error
+            debug("No numberplate detected");
+            // Does this error object have any properties we could find useful?
+        });
+    debug("Promise created");
+
+    /* Casting a ray from screen
     //normalise input data to be between -1 and 1
     let x = e.touches[0].pageX / window.innerWidth * 2 - 1;
     let y = e.touches[0].pageY / window.innerHeight *-2 +1;
 
     debug(`Casting a ray from ${x},${y}`);
-    placeObjectAtCast(x, y, truckMesh);
+    placeObjectAtCast(x, y, truckMesh); */
 }
 
 function createPlane()

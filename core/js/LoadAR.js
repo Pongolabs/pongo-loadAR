@@ -21,8 +21,7 @@ var renderer;
 var truckMesh; //the 3D cube used to represent the truck in the 3D space
 var groundPlane; // global container for the first discovered plane object
 var groundPlaneMesh; // represents the 3DPlane in the worldspace
-var cursor;
-
+var openALPRReady = false;
 
 var colors = [
   new THREE.Color( 0xffffff ),
@@ -38,7 +37,7 @@ var colors = [
 var TRUCK_MAX_WIDTH = 2.5;
 var TRUCK_MAX_HEIGHT = 4;
 var TRUCK_MAX_DEPTH = 12.5;
-var GROUND_SCALE = 10; //the factor by which to multiply the initial ground plane
+var GROUND_SCALE = 15; //the factor by which to multiply the initial ground plane
 var RENDER_GROUND = true; // toggle rendering planes or not as a 3D object for debugging
 
 function debug(message) {
@@ -114,44 +113,13 @@ function init() {
   // real world and virtual world in sync.
   vrControls = new THREE.VRControls(camera);
 
-  
-  // Create the cube geometry and add it to the scene. Set the position
-  // to (Infinity, Infinity, Infinity) so that it won't appear visible
-  // until the first hit is found, and move it there
-  var geometry = new THREE.BoxGeometry(TRUCK_MAX_WIDTH, TRUCK_MAX_HEIGHT, TRUCK_MAX_DEPTH);
-  var faceIndices = ['a', 'b', 'c'];
-  for (var i = 0; i < geometry.faces.length; i++) {
-    var f  = geometry.faces[i];
-    for (var j = 0; j < 3; j++) {
-      var vertexIndex = f[faceIndices[ j ]];
-      f.vertexColors[j] = colors[vertexIndex];
-    }
-  }
-  // Shift the cube geometry vertices upwards, so that the "pivot" of
-  // the cube is at it's base. When the cube is added to the scene,
-  // this will help make it appear to be sitting on top of the real-
-  // world surface.
-  // geometry.applyMatrix( new THREE.Matrix4().setTranslation( 0, BOX_SIZE / 2, 0 ) );
-  geometry.translate( 0, TRUCK_MAX_HEIGHT / 2, 0 );
-  var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors });
-  truckMesh = new THREE.Mesh(geometry, material);
-    
+  truckMesh = createTruckPrimitive();
 
   // Place the cube very far to initialize
   truckMesh.position.set(10000, 10000, 10000);
   truckMesh.scale.set(0.5, 0.5, 0.5); //set the scale to half the truck, for easier debugging
   scene.add(truckMesh);
-
-  // Raycast debugger object SCHEDULED FOR DELETE
-    /*
-   cursor = new THREE.Mesh(
-      new THREE.CubeGeometry(0.1, 0.3, 0.2), // Plane.extent is an x & y bounding box of the VRPlane
-      new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: false }) // A wireframe of 4*4 helps visualise the large mesh
-  );
-   scene.add(cursor); */
-  
     
-
   // Bind our event handlers
   window.addEventListener('resize', onWindowResize, false);
   canvas.addEventListener('touchstart', onClick, false);
@@ -177,7 +145,6 @@ function init() {
       });
 
   }, { once: true });
-  debug("test complete");
 
   vrDisplay.addEventListener('planesupdated', e => {
       e.planes.forEach(plane => {
@@ -218,6 +185,13 @@ function update() {
   // the near or far planes have updated
   camera.updateProjectionMatrix();
 
+  if (openALPRReady)    // This is to execute the openALPR call at a specific time in the update function
+  {                     // After the camera has been rendered onto the screen, and before the visual elements
+      callALPR();           // So as to prevent the elements from being parsed to OpenALPR
+      openALPRReady = false;
+      
+  }
+
   // Update our perspective camera's positioning
   vrControls.update();
 
@@ -256,6 +230,20 @@ function onClick (e) {
 
     debug("touch");
 
+    //openALPRReady = true; // If enabled will call ALPR in the update function so that it avoids parsing bad data
+    //callALPR();
+
+    
+    /* Casting a ray from screen
+    //normalise input data to be between -1 and 1
+    let x = e.touches[0].pageX / window.innerWidth * 2 - 1;
+    let y = e.touches[0].pageY / window.innerHeight *-2 +1;
+
+    debug(`Casting a ray from ${x},${y}`);
+    placeObjectAtCast(x, y, truckMesh); */
+}
+function callALPR()
+{
     var data = canvas.toDataURL();
     /* debugging canvas, kept for posterity
     var img = new Image();
@@ -281,21 +269,14 @@ function onClick (e) {
         });
     debug("Promise created");
 
-    /* Casting a ray from screen
-    //normalise input data to be between -1 and 1
-    let x = e.touches[0].pageX / window.innerWidth * 2 - 1;
-    let y = e.touches[0].pageY / window.innerHeight *-2 +1;
-
-    debug(`Casting a ray from ${x},${y}`);
-    placeObjectAtCast(x, y, truckMesh); */
 }
 
 function createPlane()
 {
     //Generates a mesh of a plane and matches it over the existing groundPlane
     let mesh = new THREE.Mesh(
-        new THREE.CircleGeometry(10, 32), // 
-        new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }) // A wireframe of 4*4 helps visualise the large mesh
+        new THREE.CircleGeometry(GROUND_SCALE, 32), // 32 being the number of segments.
+        new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }) // A wireframe helps visualise the large mesh
     );
 
     mesh.material.transparent = !RENDER_GROUND; // Future proofing to turn off visual debugging
@@ -309,6 +290,30 @@ function createPlane()
     scene.add(mesh);
     debug("Mesh succesfully created.");
     return mesh;
+}
+
+function createTruckPrimitive()
+{
+    // Create the cube geometry and add it to the scene. Set the position
+    // to (Infinity, Infinity, Infinity) so that it won't appear visible
+    // until the first hit is found, and move it there
+    var geometry = new THREE.BoxGeometry(TRUCK_MAX_WIDTH, TRUCK_MAX_HEIGHT, TRUCK_MAX_DEPTH);
+    var faceIndices = ['a', 'b', 'c'];
+    for (var i = 0; i < geometry.faces.length; i++) {
+        var f = geometry.faces[i];
+        for (var j = 0; j < 3; j++) {
+            var vertexIndex = f[faceIndices[j]];
+            f.vertexColors[j] = colors[vertexIndex];
+        }
+    }
+    // Shift the cube geometry vertices upwards, so that the "pivot" of
+    // the cube is at it's base. When the cube is added to the scene,
+    // this will help make it appear to be sitting on top of the real-
+    // world surface.
+    geometry.translate(0, TRUCK_MAX_HEIGHT / 2, 0); // This line will require some tweaking as it helps us position the geometry internally
+    var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors });
+    return new THREE.Mesh(geometry, material);
+
 }
 
 function updateGroundPlane(plane)
@@ -355,6 +360,10 @@ function placeObjectAtCast( normalx, normaly, object)
 
 }
 
+function test() {
+    debug("test");
+    //it just prints 'test'
+}
 
 
 /* ======================================================================

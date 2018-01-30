@@ -1,8 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\js"
+    "\\js",
+    "\\js\\tools"
   ],
-  "SelectedNode": "\\js\\LoadAR.js",
+  "SelectedNode": "\\js\\tools\\openALPR.js",
   "PreviewInSolutionExplorer": false
 }

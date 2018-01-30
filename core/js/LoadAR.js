@@ -21,6 +21,7 @@ var renderer;
 var truckMesh; //the 3D cube used to represent the truck in the 3D space
 var groundPlane; // global container for the first discovered plane object
 var groundPlaneMesh; // represents the 3DPlane in the worldspace
+var displayPanel; // an object3D that represents a floating panel used to display important information
 var openALPRReady = false;
 
 var colors = [
@@ -38,7 +39,7 @@ var TRUCK_MAX_WIDTH = 2.5;
 var TRUCK_MAX_HEIGHT = 4;
 var TRUCK_MAX_DEPTH = 12.5;
 var GROUND_SCALE = 15; //the factor by which to multiply the initial ground plane
-var RENDER_GROUND = true; // toggle rendering planes or not as a 3D object for debugging
+var RENDER_GROUND = false; // toggle rendering planes or not as a 3D object for debugging
 
 function debug(message) {
 
@@ -119,6 +120,8 @@ function init() {
   truckMesh.position.set(10000, 10000, 10000);
   truckMesh.scale.set(0.5, 0.5, 0.5); //set the scale to half the truck, for easier debugging
   scene.add(truckMesh);
+
+  displayPanel = createDisplayPanel();
     
   // Bind our event handlers
   window.addEventListener('resize', onWindowResize, false);
@@ -135,10 +138,11 @@ function init() {
       debug("Mesh created succesfully");
 
       e.planes.forEach(plane => {
-          debug(`
+          /*debug(`
             Added plane ${plane.identifier} at ${plane.modelMatrix}, 
             with extent ${plane.extent} with vertices ${plane.vertices}
-         `);
+         `);*/
+          debug("Plane found!");
           groundPlane = plane;
           updateGroundPlane(plane);
           
@@ -228,20 +232,20 @@ function onClick (e) {
         return;
     }
 
-    debug("touch");
+    //debug("touch");
 
-    //openALPRReady = true; // If enabled will call ALPR in the update function so that it avoids parsing bad data
-    //callALPR();
-
+    openALPRReady = true; // If enabled will call ALPR in the update function so that it avoids parsing bad data
     
-    /* Casting a ray from screen
+     //Casting a ray from screen
     //normalise input data to be between -1 and 1
+    /*
     let x = e.touches[0].pageX / window.innerWidth * 2 - 1;
     let y = e.touches[0].pageY / window.innerHeight *-2 +1;
 
     debug(`Casting a ray from ${x},${y}`);
     placeObjectAtCast(x, y, truckMesh); */
 }
+
 function callALPR()
 {
     var data = canvas.toDataURL();
@@ -269,6 +273,21 @@ function callALPR()
         });
     debug("Promise created");
 
+}
+
+function createDisplayPanel()
+{
+    /*let panel =
+    {
+            mesh: new THREE.Mesh(
+                new THREE.PlaneGeometry(1,1), // 32 being the number of segments.
+                new THREE.MeshBasicMaterial({ color: 0xff5000, wireframe: true }) // A wireframe helps visualise the large mesh
+            ),
+            display: function (string)
+            {
+                //nothing
+            }
+    }*/
 }
 
 function createPlane()
@@ -311,8 +330,18 @@ function createTruckPrimitive()
     // this will help make it appear to be sitting on top of the real-
     // world surface.
     geometry.translate(0, TRUCK_MAX_HEIGHT / 2, 0); // This line will require some tweaking as it helps us position the geometry internally
-    var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors });
-    return new THREE.Mesh(geometry, material);
+    var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, transparent: true, opacity: 0.9 });
+
+    let ring = new THREE.Mesh(
+        new THREE.RingGeometry(9, 10, 32).translate(0, TRUCK_MAX_HEIGHT / 2, 0),
+        new THREE.MeshBasicMaterial({ color: 0xf4f00c, transparent: true, opacity: 0.5 }) //
+    );
+
+    let rotation = new THREE.Matrix4();
+    rotation.makeRotationX(- Math.PI / 2);
+    ring.applyMatrix(rotation);
+
+    return new THREE.Mesh(geometry, material).add(ring);
 
 }
 

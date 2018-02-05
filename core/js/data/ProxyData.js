@@ -8,16 +8,15 @@
 
 function ProxyData() {
 
-    var _ = this;
-    var parent;
-
-    _.init = function (model) {
-        debug("ProxyData.init:");
-
+    // Adapters
+    var adapters = {
+        'getDeliveryByRegistrationNumber': function (registrationNumber) {
+          return getDeliveryByRegistrationNumber(registrationNumber)
+        }
     }
 
-    _.doLoadData = function (registrationNumber) {
-        debug("ProxyData.doLoadData:");
+    _.getDeliveryByRegistrationNumber = function (registrationNumber) {
+        debug("ProxyData.getDeliveryByRegistrationNumber:");
 
         var d = new $.Deferred();
 
@@ -40,4 +39,5 @@ function ProxyData() {
         d.resolve(object);
     }
 
+    return adapters;
 }

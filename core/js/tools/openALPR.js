@@ -72,7 +72,7 @@ function OpenALPR () {
                         object.center = {x: centerX, y: centerY, normalX: (centerX-imageWidth/2)/(imageWidth/2), normalY: (centerY-imageHeight/2)/(imageHeight/2)}
                     }
                 }
-                
+
                 d.resolve(object);
             }, 
             function(error) 

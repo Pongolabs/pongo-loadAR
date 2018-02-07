@@ -1,0 +1,120 @@
+﻿<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>pongo loadAR 0.1</title>
+    <meta name="description" content="Data-driven Augmented Reality For Logistics.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#ffffff">
+
+    <link rel="stylesheet" href="core/css/normalize.min.css">
+    <link rel="stylesheet" href="/core/css/common.css">
+
+    <link href="https://fonts.googleapis.com/css?family=Quicksand:300,400,500" rel="stylesheet">
+
+    <script src="core/js/vendor/modernizr-2.6.1.min.js"></script>
+    <script src="core/js/vendor/jquery-1.11.0.min.js"></script>
+    <script src="core/js/vendor/three.js"></script>
+    <script src="core/js/vendor/VRControls.js"></script>
+    <script src="core/js/vendor/three.ar.js"></script>
+
+    <script src="core/js/model/Constants.js"></script>
+    <script src="core/js/model/Model.js"></script>
+    <script src="core/js/tools/Utility.js"></script>
+    <script src="core/js/tools/UtilityImage.js"></script>
+    <script src="core/js/tools/openALPR.js"></script>
+    <script src="core/js/view/UIManager.js"></script>
+    <script src="core/js/data/ProxyData.js"></script>
+ 
+    <style>
+
+        #photo {}
+
+    </style>
+
+</head>
+
+<body>
+
+    <canvas id="photo" style="" class="rotate_ninety"></canvas>
+
+    <div id="debug"></div>
+
+    <script src="core/js/LoadAR.js"></script>
+
+    <script>
+
+        $(document).ready(
+            function () {
+
+                var canvas = document.getElementById("photo");
+                if (canvas.getContext) {
+
+                    var ctx = canvas.getContext('2d')
+
+                    var img = new Image();
+                    img.src = '/custom/content/images/truck5.jpg';
+
+                    img.onload = function (data) 
+                    {
+                        //document.body.appendChild(img);
+
+                        debug("LoadAR: image size is " + img.width + " " + img.height);
+
+                        // set the canvas size to the svg image's one
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+
+                        ctx.drawImage(img,0,0);
+
+                        var data = canvas.toDataURL();
+
+                        debug("LoadAR: detecting number plate...");
+
+                        $.when(OpenALPR().getNumberPlateFromImageData(data))
+                            .then(
+                                function (response) {
+                                    debug("LoadAR: success")
+                                    debug(response);
+
+                                    if (response)
+                                    {
+                                        debug("LoadAR: number " + response.number)
+
+                                        if (response.center)
+                                        {
+                                            debug("LoadAR: drawing circle at center of plate " + response.center.x + " " + response.center.y);
+                                            
+                                            ctx.strokeStyle="#FF0000";
+                                            ctx.fillStyle="#FF0000";
+                                            ctx.beginPath();
+                                            ctx.arc(response.center.x,response.center.y,5,0,2*Math.PI);
+                                            ctx.stroke();
+                                            ctx.fill();
+                                        }
+                                    }
+                                },
+                                function (error) {
+                                    debug("LoadAR: error")
+                                    debug(error)
+                                });
+                        
+
+                    }
+                        
+                    //$(canvas).remove();
+                    //document.body.appendChild(img)
+                       
+                }
+            }
+        );
+
+    </script>
+
+</body>
+
+</html>

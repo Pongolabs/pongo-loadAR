@@ -8,31 +8,36 @@
 
 function ProxyData() {
 
-    var _ = this;
-    var parent;
-
-    _.init = function (model) {
-        debug("ProxyData.init:");
-
+    // Adapters
+    var adapters = {
+        'getDeliveryByRegistrationNumber': function (registrationNumber) {
+          return getDeliveryByRegistrationNumber(registrationNumber)
+        }
     }
 
-    _.doLoadData = function () {
-        debug("ProxyData.doLoadData:");
+    _.getDeliveryByRegistrationNumber = function (registrationNumber) {
+        debug("ProxyData.getDeliveryByRegistrationNumber:");
 
-        // TODO complete
+        var d = new $.Deferred();
 
         $.ajax({
             type: 'POST',
-            url: APP_ROOT_URL + APP_FOLDER_NAME + "core/loadData.aspx",
-            data: {},
+            url: APP_ROOT_URL + APP_FOLDER_NAME + "core/DeliveryGetByVehicleRegistrationNumber.aspx",
+            data: {registrationNumber: registrationNumber},
             success: function (response) {
                 var object = jQuery.parseJSON(response);
 
+                d.resolve(object);
             },
             error: function () {
                 debug("ProxyData.doLoadData: error");
+
+                d.reject(error);
             }
         });
+
+        d.resolve(object);
     }
 
+    return adapters;
 }

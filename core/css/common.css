@@ -392,3 +392,16 @@ input:focus:-ms-input-placeholder { color:transparent; } /* IE 10+ */
     font-family: 'Courier New';
     padding: 10px;
 }
+
+#canvas
+{
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+#canvasOverlay
+{
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}

@@ -1,7 +1,7 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeFile="DeliveryGetByVehicleRegistrationNumber.aspx.cs" Inherits="DeliveryGetByVehicleRegistrationNumber" %>
 {
   "success": "true",
-  [{
+  "deliveries" : [{
   "guidData":"9F4003CA-0C1E-4CCB-81FB-BEAABA80A6B1",
   "status":"progress",
   "vehicle_registrationNumber": "<%= Request["registrationNumber"] %>",

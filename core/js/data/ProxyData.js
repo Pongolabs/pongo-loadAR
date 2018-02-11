@@ -11,9 +11,9 @@ function ProxyData() {
     // Adapters
     var adapters = {
         'getDeliveryByRegistrationNumber': function (registrationNumber) {
-          return getDeliveryByRegistrationNumber(registrationNumber)
+            return getDeliveryByRegistrationNumber(registrationNumber);
         }
-    }
+    };
 
     _.getDeliveryByRegistrationNumber = function (registrationNumber) {
         debug("ProxyData.getDeliveryByRegistrationNumber:");
@@ -23,7 +23,7 @@ function ProxyData() {
         $.ajax({
             type: 'POST',
             url: APP_ROOT_URL + APP_FOLDER_NAME + "core/DeliveryGetByVehicleRegistrationNumber.aspx",
-            data: {registrationNumber: registrationNumber},
+            data: { registrationNumber: registrationNumber },
             success: function (response) {
                 var object = jQuery.parseJSON(response);
 
@@ -37,7 +37,7 @@ function ProxyData() {
         });
 
         d.resolve(object);
-    }
+    };
 
     return adapters;
 }

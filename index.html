@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <title>pongo loadAR 0.1</title>
+    <title>pongo loadAR 0.2</title>
     <meta name="description" content="Data-driven Augmented Reality For Logistics.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
 
@@ -13,6 +13,7 @@
 
     <link rel="stylesheet" href="core/css/normalize.min.css">
     <link rel="stylesheet" href="/core/css/common.css">
+    <link rel="stylesheet" href="/core/css/loadar.css">
 
     <link href="https://fonts.googleapis.com/css?family=Quicksand:300,400,500" rel="stylesheet">
 
@@ -21,6 +22,7 @@
     <script src="core/js/vendor/three.js"></script>
     <script src="core/js/vendor/VRControls.js"></script>
     <script src="core/js/vendor/three.ar.js"></script>
+    <script src="core/js/vendor/sammy.min.js"></script>
 
     <!-- Non-minified JS - REMOVE FOR PRODUCTION -->
     <script src="core/js/model/Constants.js"></script>
@@ -30,14 +32,39 @@
     <script src="core/js/tools/openALPR.js"></script>
     <script src="core/js/view/UIManager.js"></script>
     <script src="core/js/data/ProxyData.js"></script>
+    <script src="core/js/Globals.js"></script>
+    <script src="core/js/LoadAR.js"></script>
+
  
 </head>
 
 <body>
-	<div id="imagedebug"></div>
-    <textarea id="debug"></textarea>
-	<canvas id="canvasOverlay"></canvas>
-    <script src="core/js/LoadAR.js"></script>
+
+    <div id="container">
+        
+	    <div id="imagedebug"></div>
+
+        <textarea id="debug"></textarea>
+        <canvas id="canvasOverlay"></canvas>
+
+        <div id="splash">
+
+            <div id="splash-logo"><img id="header-logo" src="/core/img/logo_pongo.png" alt="pongo logo"></div>
+            <div id="splash-logo-message">
+                <div class="label label-heading">load<b>AR</b></div>
+            </div>
+
+        </div>
+
+        <div id="footer">
+
+            <div id="footer-button-center" class="button-touch"></div>
+
+        </div>
+
+    </div>
+
+    <script src="core/js/Index.js"></script>
 
 </body>
 

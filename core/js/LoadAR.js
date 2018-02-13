@@ -113,22 +113,27 @@ function LoadAR() {
                     showPoseStatus: true,
                     showPlanes: RENDER_GROUND
                 });
-            document.body.appendChild(arDebug.getElement()); //re-enable this to turn on the debugger, do we even need it anymore???
-              
+            //document.body.appendChild(_.arDebug.getElement()); //re-enable this to turn on the debugger, do we even need it anymore??? // Aidan reenabled this to debug finding vertical planes
+
+            
+
             // Setup the three.js rendering environment
             _.renderer = new THREE.WebGLRenderer({ alpha: true, preserveDrawingBuffer: true });
             _.renderer.setPixelRatio(window.devicePixelRatio);
             _.renderer.setSize(window.innerWidth, window.innerHeight);
             _.renderer.autoClear = false;
-            _.canvas = renderer.domElement;
+            _.canvas = _.renderer.domElement;
             _.canvas.id = "video";
-        
+
+            
             // add to DOM
-            document.body.appendChild(canvas);
+            //document.body.appendChild(_.canvas);
+            document.getElementById("container").appendChild(_.canvas);
 
             _.canvasOverlay = document.getElementById("canvasOverlay");
             _.canvasOverlay.width = SCREEN_WIDTH;
             _.canvasOverlay.height = SCREEN_HEIGHT;
+
  
             // Creating the ARView, which is the object that handles
             // the rendering of the camera stream behind the three.js
@@ -155,12 +160,8 @@ function LoadAR() {
 
             debug("LoadAR.initialize: create 3D models");  
 
-            _.truckMesh = createTruckPrimitive();
 
-            // Place the cube very far to initialize
-            _.truckMesh.position.set(10000, 10000, 10000);
-            _.truckMesh.scale.set(0.5, 0.5, 0.5); //set the scale to half the truck, for easier debugging
-            _.scene.add(truckMesh);
+            _.truckBackPanel = _.createVerticalPlane();
   
             debug("LoadAR.initialize: bind event handlers");  
 
@@ -210,11 +211,14 @@ function LoadAR() {
 
               _.drawPlateSeek();
               _.axesHelper = new THREE.AxesHelper(50);
-              scene.add(_.axesHelper);
+              _.scene.add(_.axesHelper);
+              
+
          }
 
         // set global flag
         APP_INITIALIZED = true;
+        debug("LoadAR.initialize: success");
 
     }
 
@@ -224,7 +228,7 @@ function LoadAR() {
 
     _.update = function() 
     {
-       debug("LoadAR.update:");
+       //debug("LoadAR.update:"); //spews too much info into the debugger
 
         if (AR_SUPPORTED == true) 
         {
@@ -358,6 +362,7 @@ function LoadAR() {
             new THREE.PlaneGeometry(1, 1), // 32 being the number of segments.
             new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }) // A wireframe helps visualise the large mesh
         );
+        mesh.position.set(10000, 10000, 10000);
 
         _.scene.add(mesh);
         return mesh;
@@ -419,16 +424,20 @@ function LoadAR() {
         // moves an object to be at a point in front of the user's pose, a set distance away from the user.
         // object is the 3D model to place at the desired coordinates
         // distance is used to placed the object at a predefined distance from the pose
+
+        //reset pose of object
         object.position.copy(_.camera.position);
-        debug(`ObjectOld:${object.position.x.toFixed(2)},${object.position.y.toFixed(2)},${object.position.z.toFixed(2)}`);
-        debug(`CameraRot:${_.camera.rotation.x.toFixed(2)},${_.camera.rotation.y.toFixed(2)},${_.camera.rotation.z.toFixed(2)}`);
+        object.rotation.set(0, 0, 0);
+        //debug(`ObjectOld:${object.position.x.toFixed(2)},${object.position.y.toFixed(2)},${object.position.z.toFixed(2)}`);
+        debug(`CameraRot:${_.camera.getWorldRotation().x.toFixed(2)},${_.camera.getWorldRotation().y.toFixed(2)},${_.camera.getWorldRotation().z.toFixed(2)}`);
 
         // Move the object forward in a direction based on the camera's current direction
-        var matrix = new THREE.Matrix4();
-        matrix.extractRotation(camera.matrix);
-        var axis = new THREE.Vector3();
-        axis.applyMatrix4(matrix);
-        object.translateOnAxis(axis.normalize(), distance);
+        var _vector = _.camera.getWorldDirection(new THREE.Vector3());
+        _vector.y = 0;
+        _vector.normalize();
+        
+        object.translateOnAxis(_vector, distance);
+        debug(`LoadAR.placeObjectAtDistance: x: ${_vector.x.toFixed(2)}, y: ${_vector.y.toFixed(2)}, z: ${_vector.z.toFixed(2)}`);
 
         // Rotate the 3D object
         var angle = Math.atan2(
@@ -437,7 +446,7 @@ function LoadAR() {
         );
         object.rotation.set(0, angle, 0);
 
-        debug(`ObjectNew:${object.position.x.toFixed(2)},${object.position.y.toFixed(2)},${object.position.z.toFixed(2)}`);
+        //debug(`ObjectNew:${object.position.x.toFixed(2)},${object.position.y.toFixed(2)},${object.position.z.toFixed(2)}`);
 
     }
 
@@ -456,7 +465,7 @@ function LoadAR() {
         let height = PLATE_HEIGHT_RATIO * PLATE_DRAW_RATIO;
 
         let offsetX = _.canvasOverlay.width / 2 - width / 2;
-        let offsetY = _.canvasOverlay.height / 3 * 2 - height / 2 - (window.screen.height - window.innerHeight); // position the plate finder 2/3 down the side of the page
+        let offsetY = _.canvasOverlay.height / 2 - height / 2 - (window.screen.height - window.innerHeight);
 
         _.plateSeekRegion = { x: offsetX, y: offsetY };
 
@@ -498,18 +507,12 @@ function LoadAR() {
     _.onClick = function (e) 
     {
         debug("LoadAR.onClick:");
-    
-        /**
-         * When clicking on the screen, fire a ray from where the user clicked
-         * on the screen and if a hit is found, place a cube there.
-         */
 
         // If we don't have a touches object, abort
         if (!e.touches[0]) {
             return;
         }
-
-        debug("touch");
+        
 
         /*
         let panel = createDisplayPanel();
@@ -520,13 +523,13 @@ function LoadAR() {
         panel.texture.needsUpdate = true;
         debug("debug");
         */
+        let condition = true;
+        //let condition = _.callStrokeWidthTransform();
 
-        if (_.callStrokeWidthTransform())
+        if (condition) // conditional should optimally depend on the software automatically determining it is finding a plate, presently it happens on a user action
         {
                //openALPRReady = true; // If enabled will call ALPR in the update function so that it avoids parsing bad data
         }
-
-        _.truckBackPanel = _.createVerticalPlane();
     
          //Casting a ray from screen
         //normalise input data to be between -1 and 1
@@ -534,7 +537,7 @@ function LoadAR() {
         //let x = e.touches[0].pageX / window.innerWidth * 2 - 1;
         //let y = e.touches[0].pageY / window.innerHeight *-2 +1;
 
-        _.placeObjectAtDistance(_.truckBackPanel, 10); 
+        _.placeObjectAtDistance(_.truckBackPanel, 1); 
     }
 
     /* ==========================================================================

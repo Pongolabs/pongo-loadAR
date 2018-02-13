@@ -359,7 +359,7 @@ function LoadAR() {
         debug("LoadAR.createVerticalPlane:");
 
         let mesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(1, 1), // 32 being the number of segments.
+            new THREE.PlaneGeometry(1, 1, 20, 20), // 32 being the number of segments.
             new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }) // A wireframe helps visualise the large mesh
         );
         mesh.position.set(10000, 10000, 10000);
@@ -465,7 +465,7 @@ function LoadAR() {
         let height = PLATE_HEIGHT_RATIO * PLATE_DRAW_RATIO;
 
         let offsetX = _.canvasOverlay.width / 2 - width / 2;
-        let offsetY = _.canvasOverlay.height / 2 - height / 2 - (window.screen.height - window.innerHeight);
+        let offsetY = _.canvasOverlay.height * 2 / 3 - height / 2 - (window.screen.height - window.innerHeight);
 
         _.plateSeekRegion = { x: offsetX, y: offsetY };
 
@@ -537,7 +537,7 @@ function LoadAR() {
         //let x = e.touches[0].pageX / window.innerWidth * 2 - 1;
         //let y = e.touches[0].pageY / window.innerHeight *-2 +1;
 
-        _.placeObjectAtDistance(_.truckBackPanel, 1); 
+        _.placeObjectAtDistance(_.truckBackPanel, 1.6); 
     }
 
     /* ==========================================================================

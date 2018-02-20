@@ -84,14 +84,14 @@ sammy = Sammy('body', function () {
 
     this.get('#/v/:registrationNumber', function ()
     {
-        var registrationNumber = (this.params['registrationNumber']);
+        var registrationNumber = this.params['registrationNumber'];
         app.setState("view", registrationNumber);
     });
 
     // default route
     this.notFound = function () {
         app.setState("splash");
-    }
+    };
 
 });
 

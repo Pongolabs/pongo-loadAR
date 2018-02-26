@@ -5,7 +5,8 @@
  * PongoOpenALPR Adapter
  * Returns licence plate data.
  */
-function OpenALPR () {
+function OpenALPR () 
+{
   // Adapters
   var adapters = {
     'retrievePlate': function (imageDataURL, successFunc, errorFunc) {
@@ -23,6 +24,14 @@ function OpenALPR () {
   {
         var d = new $.Deferred();
 
+        if (PLATE_DEBUG_MODE == true)
+        {
+            setTimeout(function() {
+                d.resolve({number: "XCX419"});
+                }, 2000);
+        }
+        else 
+        {
         // detect number plate
         OpenALPR().retrievePlate(data, 
             function(response) 
@@ -33,6 +42,7 @@ function OpenALPR () {
                 if (!response.results || response.results.length === 0) 
                 {
                     debug("Failed, no numberplate found");
+                    d.reject();
                     return;
                 }
 
@@ -83,6 +93,8 @@ function OpenALPR () {
                 d.reject(error);
 
             });
+
+        }
 
       return d;
   }

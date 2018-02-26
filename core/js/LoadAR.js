@@ -49,27 +49,32 @@ function LoadAR() {
             case "splash":
             {
                 // splash screen with branding
-                // move automatically to default afterwards
-                setTimeout(function () {
 
-                    $("#splash").fadeOut(700);
-
-                    setTimeout(function () {
-                        // go to the default state
-                        _.gotoState("#/d");
-                    }, 750);
-
-                }, 1000);
+                UIManager().wireUpEvents();
+                UIManager().render();
 
                 break;
             }
 
             case "detect":
             {
+                // if coming directly into this state
+                // send user back to splash screen
+                if (!APP_INITIALIZED) 
+                {
+                    setTimeout(function () {
+                        // go to the splash state
+                        _.gotoState("#/x");
+                    }, 50);
+
+                    return;
+                }
+
                 // detect ground and license plate (with user input)
-                if (!APP_INITIALIZED) app.initialize();
-                _.drawCursor();
-                _.update();
+                if (UPDATE_VR_RUNNING != true) _.updateVR();
+                
+                UIManager().wireUpEvents();
+                UIManager().render();
                 
                 break;
             }
@@ -78,11 +83,23 @@ function LoadAR() {
             {
                 // show delivery details and AR experience
                 // overlaid on vehicle
+
+                // if coming directly into this state
+                // send user back to splash screen
+                if (!APP_INITIALIZED) 
+                {
+                    setTimeout(function () {
+                        // go to the splash state
+                        _.gotoState("#/x");
+                    }, 50);
+
+                    return;
+                }
+
                 var registrationNumber = arg0;
-                if (!APP_INITIALIZED) app.initialize();
+
                 debug(`LoadAR.setState: Viewing plate: ${arg0}`);
                 _.clearOverlay();
-                _.drawCursor();
                 
                 if (_.poseCache.position.equals(new THREE.Vector3())) {
                     _.poseCache.copy(camera);
@@ -97,12 +114,13 @@ function LoadAR() {
                 _.placeObjectAtDistance(new _.node(arg0), 1.55); // Set this a little short of the truck back panel, so the two don't intersect weirdly
                 
                 setTimeout(function () { _.checkAtCast(); }, VIEW_CAST_INTERVAL);
-                _.update(); // Is this an issue if update loop is already running? Could cause problems
-                
 
-                // TODO: render AR UX
+                if (UPDATE_VR_RUNNING != true) _.updateVR();
 
-                
+                UIManager().showNotification(MESSAGE_VIEW_START);
+
+                UIManager().wireUpEvents();
+                UIManager().render();
 
                 break;
             }
@@ -141,8 +159,6 @@ function LoadAR() {
             });
             //document.body.appendChild(_.arDebug.getElement()); //re-enable this to turn on the debugger, do we even need it anymore??? // Aidan reenabled this to debug finding vertical planes
 
-
-
             // Setup the three.js rendering environment
             _.renderer = new THREE.WebGLRenderer({ alpha: true, preserveDrawingBuffer: true });
             _.renderer.setPixelRatio(window.devicePixelRatio);
@@ -164,7 +180,6 @@ function LoadAR() {
             _.canvasOverlay = document.getElementById("canvasOverlay");
             _.canvasOverlay.width = SCREEN_WIDTH;
             _.canvasOverlay.height = SCREEN_HEIGHT;
-
 
             // Creating the ARView, which is the object that handles
             // the rendering of the camera stream behind the three.js
@@ -216,13 +231,15 @@ function LoadAR() {
 
             // Bind our event handlers
             window.addEventListener('resize', _.onWindowResize, false);
-            document.getElementById("footer-button-center").addEventListener('touchstart', _.onClick, false);
             
-
             // Logs the addition of the first discovered plane and creates a mesh to use as the ground, places it overlapping the initial plane
             debug("Searching for a plane. . .");
             _.vrDisplay.addEventListener('planesadded', e => {
                 debug(`Planes added for ${e.display}`);
+
+                GROUND_PLANE_FOUND = true;
+                _.drawCursor();
+                UIManager().render();
 
                 _.groundPlane = null;
                 debug("Creating ground plane mesh. . .");
@@ -240,6 +257,9 @@ function LoadAR() {
                     _.extendGroundPlane(plane);
 
                 });
+                
+                // update notification 
+                UIManager().showNotification(MESSAGE_DETECTING_PLATE);
 
             }, { once: true });
 
@@ -263,9 +283,17 @@ function LoadAR() {
             // Initialise the raycaster object
             raycaster = new THREE.Raycaster();
 
-
             // Initialise the nodes array
             _.nodes = [];
+
+            // show notification
+            if (GROUND_PLANE_FOUND == false)
+            {
+                UIManager().showNotification(MESSAGE_DETECTING_GROUND);
+            }
+
+            // apply UI state
+            UIManager().render();
         }
 
         // set global flag
@@ -278,8 +306,8 @@ function LoadAR() {
        AR/3D FUNCTIONS 
        ========================================================================== */
 
-    _.update = function () {
-        //debug("LoadAR.update:"); //spews too much info into the debugger
+    _.updateVR = function () {
+        //debug("LoadAR.updateVR:"); //spews too much info into the debugger
 
         if (AR_SUPPORTED === true) {
             /**
@@ -299,8 +327,8 @@ function LoadAR() {
             _.camera.updateProjectionMatrix();
 
             if (_.openALPRReady)    // This is to execute the openALPR call at a specific time in the update function
-            {                     // After the camera has been rendered onto the screen, and before the visual elements
-                _.callALPR();           // So as to prevent the elements from being parsed to OpenALPR
+            {                       // After the camera has been rendered onto the screen, and before the visual elements
+                _.callALPR();       // So as to prevent the elements from being parsed to OpenALPR
                 _.openALPRReady = false;
             }
 
@@ -311,10 +339,11 @@ function LoadAR() {
             _.renderer.clearDepth();
             _.renderer.render(_.scene, _.camera);
             
+            UPDATE_VR_RUNNING = true;
 
             // Kick off the requestAnimationFrame to call this function
             // when a new VRDisplay frame is rendered
-            _.vrDisplay.requestAnimationFrame(_.update);
+            _.vrDisplay.requestAnimationFrame(_.updateVR);
         }
     };
 
@@ -336,7 +365,7 @@ function LoadAR() {
                 ),
                 display: function (string) {
                     // This method will eventually set the canvas so that it displays whatever text is entered
-                    debug(string);
+                    // debug(string);
                     this.texture.needsUpdate = true;
                 }
             };
@@ -440,8 +469,6 @@ function LoadAR() {
             return;
         }
 
-        
-
         // Get 3D coords by casting the ray
         var intersect = raycaster.intersectObject(_.groundPlaneMesh);
 
@@ -513,17 +540,19 @@ function LoadAR() {
 
         if (_.state === "detect" || _.state === "view")
         {
-            if (_.state === "detect") {
+            if (_.state === "detect" && GROUND_PLANE_FOUND) {
                 debug("LoadAR.drawPlateSeek: Cursor: Detect");
+
                 width = PLATE_WIDTH_RATIO * PLATE_DRAW_RATIO;
                 height = PLATE_HEIGHT_RATIO * PLATE_DRAW_RATIO;
                 offsetX = _.canvasOverlay.width / 2 - width / 2;
-                offsetY = _.canvasOverlay.height * 2 / 3 - height / 2 - (window.screen.height - window.innerHeight);
+                offsetY = _.canvasOverlay.height * 0.66;
 
                 _.imageRecognitionRegion = { x: offsetX, y: offsetY };
 
             } else if (_.state === "view") {
                 debug("LoadAR.drawPlateSeek: Cursor: View");
+
                 width = PLATE_DRAW_RATIO * 12;
                 height = PLATE_DRAW_RATIO * 12;
                 offsetX = _.canvasOverlay.width / 2 - width / 2;
@@ -533,11 +562,11 @@ function LoadAR() {
             }
 
             ctx.beginPath();
-            ctx.lineWidth = "4";
+            ctx.lineWidth = "2";
             ctx.strokeStyle = PLATE_DRAW_COLOUR;
             ctx.rect(offsetX, offsetY, width, height);
             ctx.stroke();
-            let armLength = 16;
+            let armLength = 8;
             ctx.clearRect(offsetX + armLength, offsetY - armLength, width - 2 * armLength, height + 2 * armLength);
             ctx.clearRect(offsetX - armLength, offsetY + armLength, width + 2 * armLength, height - 2 * armLength);
         }
@@ -574,11 +603,17 @@ function LoadAR() {
     _.checkAtCast = function () {
 
         setTimeout(function () { _.checkAtCast(); }, VIEW_CAST_INTERVAL);
+        
         raycaster.setFromCamera(new THREE.Vector2(0,0.15), _.camera);
         var intersect = raycaster.intersectObjects(_.nodes,false);
+        
         if (intersect.length === 0) { // Breaks the function if the raycast returns empty
             debug(`LoadAR.checkAtCast: Nothing found`);
             return;
+        }
+        else
+        {
+            debug(`LoadAR.checkAtCast: Object found`);
         }
         debug(`LoadAR.checkAtCast:${nodeDictionary[intersect[0].object.id]}`);
         
@@ -602,14 +637,22 @@ function LoadAR() {
         _.renderer.setSize(window.innerWidth, window.innerHeight);
     };
 
-    _.onClick = function (e) {
-        debug(`LoadAR.onClick: ${_.state}`);
+    _.onFooterButtonClick = function (e) {
+        debug("LoadAR.onFooterButtonClick:");
 
-        // If we don't have a touches object, abort
-        if (!e.touches[0]) {
-            return;
-        }
-        switch (_.state) {
+        switch (_.state) 
+        {
+            case "splash":
+
+                // initialize the app
+                app.initialize();
+                setTimeout(function () {
+                    // go to the detect state
+                    _.gotoState("#/d");
+                }, 50);
+
+                break;
+
             case "detect":
                 {
                     var condition = true;
@@ -617,11 +660,12 @@ function LoadAR() {
 
                     if (condition) // conditional should optimally depend on the software automatically determining it is finding a plate, presently it happens on a user action
                     {
-                        debug("LoadAR.onClick: Calling OpenALPR");
+                        debug("LoadAR.onFooterButtonClick: Calling OpenALPR");
+                        
                         //_.openALPRReady = true; // If enabled will call ALPR in the update function so that it avoids parsing bad data
                         _.poseCache.copy(_.camera);
 
-                        _.gotoState("#/v/" + "PONGO1");
+                        _.callALPR();
 
                     }
                     break;
@@ -647,6 +691,8 @@ function LoadAR() {
         img.src = data;
         document.getElementById("imagedebug").appendChild(img);
         */
+        UIManager().showNotification(MESSAGE_PLATE_FINDING);
+
         debug("LoadAR.callALPR: Promise created");
         $.when(OpenALPR().getNumberPlateFromImageData(data))
             .then(
@@ -656,14 +702,26 @@ function LoadAR() {
                 debug(`OpenALPR: Detected Licence plate as ${response.number}`);
                 //debug("Normalised screen position: x ${response.center.normalX} & y ${response.center.normalY}");
 
-                // go to view state
-                _.gotoState("#/v/" + response.number);
+                UIManager().showNotification(MESSAGE_PLATE_FOUND.replace("{registrationNumber}", response.number));
+
+                PLATE_FOUND = true;
+
+                setTimeout(function () {
+                    // go to view state
+                    _.gotoState("#/v/" + response.number);
+                }, 2000);
                 
             },
             function (error) {
                 //error
                 debug("LoadAR.callALPR: No numberplate detected");
                 // Does this error object have any properties we could find useful?
+
+                UIManager().showNotification(MESSAGE_PLATE_NOT_FOUND);
+                setTimeout(function() {
+                    UIManager().hideNotification();    
+                }, 3000);
+
             });
     };
 

@@ -9,16 +9,10 @@
 function UIManager() {
 
     var _ = this;
-    var parent;
 
-    // local copy of parent data model
-    var model;
-    _.model = model;
 
     _.init = function (model) {
         debug("UIManager.init:");
-
-        _.model = model;
     }
 
     _.wireUpEvents = function () {
@@ -56,11 +50,44 @@ function UIManager() {
 
             });
         }
+
+        document.getElementById("footer-button-center").removeEventListener('click', app.onFooterButtonClick);
+        document.getElementById("footer-button-center").addEventListener('click', app.onFooterButtonClick);
     }
 
     _.render = function ()
     {
         debug("UIManager.render: ");
+        _.applyGlobalStateToContainer();
+
     }
+
+    _.applyGlobalStateToContainer = function ()
+    {
+        debug("UIManager.applyGlobalStateToContainer: ");
+
+        // apply global state flags to container element
+        // this enables us to use CSS switches to do rendering
+        $("#container").attr("data-ground-plane-found", GROUND_PLANE_FOUND)
+        $("#container").attr("data-plate-found", PLATE_FOUND)
+
+    }
+
+    _.showNotification = function (notificationMessage)
+    {
+        debug("UIManager.showNotification: ");
+
+        $("#notification").html(notificationMessage);
+        $("#notification").fadeIn();
+    }
+
+    _.hideNotification = function ()
+    {
+        debug("UIManager.hideNotification: ");
+
+        $("#notification").fadeOut();
+    }
+
+    return _;
 
 }

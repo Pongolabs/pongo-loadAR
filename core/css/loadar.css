@@ -9,7 +9,7 @@
     height: 120px;
     font-weight: 400;
     position: absolute;
-    top: 106px;
+    top: 114px;
     left: 16px;
     background-color: rgba(0,0,0,0.35);
     color: #ccc;
@@ -110,7 +110,7 @@
     top: 16px;
     width: 90%;
     width: calc(100% - 32px);
-    height: 74px;
+    height: 82px;
     z-index: 10003;
     border-radius: 4px;
     left: 16px;
@@ -161,7 +161,7 @@
 }
  
 /* detect */
-#container[data-state="detect"] #footer {
+#container[data-state="detect"][data-ground-plane-found="true"] #footer {
     display: block;
 }
 

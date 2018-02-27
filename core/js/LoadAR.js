@@ -22,6 +22,10 @@ function LoadAR() {
     var axesDisplay;
     var poseCache;
     var raycaster;
+    var nodeSelected; // the id of the currently selected node, for displaying data
+    var vMax;
+    var vMin; // Vector3 containing the maximum and minimum scale a node can be
+    var clock;
 
     var openALPRReady = false;
     var imageRecognitionRegion; //contains the x and y coords on the main canvas of the bounding box that designates where to search for plate info
@@ -71,7 +75,7 @@ function LoadAR() {
                 }
 
                 // detect ground and license plate (with user input)
-                if (UPDATE_VR_RUNNING != true) _.updateVR();
+                if (UPDATE_VR_RUNNING !== true) _.updateVR();
                 
                 UIManager().wireUpEvents();
                 UIManager().render();
@@ -106,16 +110,17 @@ function LoadAR() {
                 }
                 //debug(`PoseCh:${_.poseCache.rotation.x},${_.poseCache.rotation.y},${_.poseCache.rotation.z}`);
                 //debug(`Camera:${_.camera.rotation.x},${_.camera.rotation.y},${_.camera.rotation.z}`);
-                
+                let _node = new _.node(arg0);
                 _.placeObjectAtDistance(_.truckBackPanel, 1.6);
+                _.placeObjectAtDistance(_node, 1.55); // Set this a little short of the truck back panel, so the two don't intersect weirdly
                 if (_.groundPlaneMesh !== null) {
-                    _.truckBackPanel.position.setY(_.groundPlaneMesh.position.y + TRUCK_BACK_SIZE/2);
+                    _.truckBackPanel.position.setY(_.groundPlaneMesh.position.y + TRUCK_MAX_HEIGHT / 2);
+                    _node.position.setY(_.groundPlaneMesh.position.y + TRUCK_MAX_HEIGHT / 3);
                 }
-                _.placeObjectAtDistance(new _.node(arg0), 1.55); // Set this a little short of the truck back panel, so the two don't intersect weirdly
                 
                 setTimeout(function () { _.checkAtCast(); }, VIEW_CAST_INTERVAL);
 
-                if (UPDATE_VR_RUNNING != true) _.updateVR();
+                if (UPDATE_VR_RUNNING !== true) _.updateVR();
 
                 UIManager().showNotification(MESSAGE_VIEW_START);
 
@@ -144,6 +149,7 @@ function LoadAR() {
 
     _.initialize = function () {
         debug("LoadAR.initialize:");
+        _.clock = new THREE.Clock(false);
 
         if (AR_SUPPORTED === true) {
             debug("LoadAR.initialize: creating 3D/AR assets");
@@ -207,25 +213,29 @@ function LoadAR() {
             debug("LoadAR.initialize: create 3D models");
 
             _.groundPlaneMesh = null;
-            _.truckBackPanel = _.createVerticalPlane(TRUCK_BACK_SIZE);
+            _.truckBackPanel = _.createVerticalPlane(TRUCK_MAX_WIDTH, TRUCK_MAX_HEIGHT);
 
-            var exclusionZone = new THREE.Mesh(
-                new THREE.RingGeometry(EXCLUSION_ZONE_RADIUS, EXCLUSION_ZONE_RADIUS+EXCLUSION_ZONE_WIDTH, 16, 2, 0, Math.PI).rotateX(Math.PI / 2).translate(0, -1, 0),
+            var exclusionZone = new THREE.Mesh( // Semi-circle ring on the ground
+                new THREE.RingGeometry(EXCLUSION_ZONE_RADIUS, EXCLUSION_ZONE_RADIUS + EXCLUSION_ZONE_WIDTH, 16, 2, 0, Math.PI).rotateX(Math.PI / 2).translate(0, -TRUCK_MAX_HEIGHT / 2, EXCLUSION_ZONE_WIDTH),
                 new THREE.MeshBasicMaterial({ color: 0xFF4D4E, transparent: true, opacity: 0.5, side: THREE.DoubleSide }) //
             );
-            exclusionZone.add(
+            exclusionZone.add( // Bottom of the semi-circle
                 new THREE.Mesh(
-                    new THREE.PlaneGeometry(EXCLUSION_ZONE_RADIUS*2, EXCLUSION_ZONE_WIDTH).rotateX(Math.PI / 2).translate(0, -1, EXCLUSION_ZONE_WIDTH/2),
+                    new THREE.PlaneGeometry(EXCLUSION_ZONE_RADIUS * 2 + EXCLUSION_ZONE_WIDTH * 2, EXCLUSION_ZONE_WIDTH).rotateX(Math.PI / 2).translate(0, -TRUCK_MAX_HEIGHT / 2, EXCLUSION_ZONE_WIDTH-EXCLUSION_ZONE_WIDTH/2),
                     new THREE.MeshBasicMaterial({ color: 0xFF4D4E, transparent: true, opacity: 0.5, side: THREE.DoubleSide }) //
                 )
             );
-            exclusionZone.add( // @TODO: make this better
+            exclusionZone.add( // Texture inside the semi-circle
                 new THREE.Mesh(
-                    new THREE.CircleGeometry(EXCLUSION_ZONE_RADIUS, 16, 0, Math.PI).rotateX(Math.PI / 2).translate(0, -1, 0),
-                    new THREE.MeshBasicMaterial({ color: 0xFF4D4E, wireframe: true, transparent: true, opacity: 0.5, side: THREE.DoubleSide }) //
+                    new THREE.CircleGeometry(EXCLUSION_ZONE_RADIUS, 16, 0, Math.PI).rotateX(Math.PI / 2).translate(0, -TRUCK_MAX_HEIGHT / 2, EXCLUSION_ZONE_WIDTH),
+                    new THREE.MeshBasicMaterial({ color: 0xFF4D4E, map: new THREE.TextureLoader().load("../core/img/bg_exclusion_texture.png"), transparent: true, opacity: 0.5, side: THREE.DoubleSide }) //
                 )
             );
             _.truckBackPanel.add(exclusionZone);
+
+            _.nodeSelected = null;
+            _.vMin = new THREE.Vector3(NODE_SIZE, NODE_SIZE, NODE_SIZE);
+            _.vMax = new THREE.Vector3(NODE_SIZE_SELECTED, NODE_SIZE_SELECTED, NODE_SIZE_SELECTED);
 
             debug("LoadAR.initialize: bind event handlers");
 
@@ -287,7 +297,7 @@ function LoadAR() {
             _.nodes = [];
 
             // show notification
-            if (GROUND_PLANE_FOUND == false)
+            if (GROUND_PLANE_FOUND === false)
             {
                 UIManager().showNotification(MESSAGE_DETECTING_GROUND);
             }
@@ -298,8 +308,10 @@ function LoadAR() {
 
         // set global flag
         APP_INITIALIZED = true;
-        debug("LoadAR.initialize: success");
-
+        
+        let output = "LoadAR is ";
+        output += PLATE_DEBUG_MODE ? "in debug mode." : "ready to analyse plates.";
+        debug("LoadAR.initialize: " + output);
     };
 
     /* ==========================================================================
@@ -335,6 +347,12 @@ function LoadAR() {
             // Update our perspective camera's positioning
             _.vrControls.update();
 
+            // Node animation
+            if (_.state === "view")
+            {
+                _.animateNodes();
+            }
+
             // Render our three.js virtual scene
             _.renderer.clearDepth();
             _.renderer.render(_.scene, _.camera);
@@ -347,6 +365,23 @@ function LoadAR() {
         }
     };
 
+    _.animateNodes = function () {
+        //debug(`LoadAR.animateNodes: ${_.nodeSelected}`);
+        for (let i = 0; i < _.nodes.length; i++)
+        {
+            if (_.nodes[i].id === _.nodeSelected) {
+                let t = (_.nodes[i].scale.x - NODE_SIZE) * 10;
+                _.nodes[i].scale.addScalar(0.02 * EasingFunctions.easeOutCubic(t) + 0.001);
+                _.nodes[i].scale.clamp(_.vMin, _.vMax);
+                //debug(`${EasingFunctions.easeOutCubic(t)}`);
+            }
+            else if (_.nodes[i].scale.x > NODE_SIZE)
+            {
+                _.nodes[i].scale.subScalar(0.02);
+                _.nodes[i].scale.clamp(_.vMin, _.vMax);
+            }
+        }
+    }
     _.createDisplayPanel = function () {
         debug("LoadAR.createDisplayPanel:");
 
@@ -430,19 +465,25 @@ function LoadAR() {
 
     };
 
-    _.createVerticalPlane = function (size) {
-        debug("LoadAR.createVerticalPlane:");
-        // radius of a ring is size * root 2 over 2 to give an square's length of 2
-        var x = size * Math.SQRT2 / 2;
-
-        let mesh = new THREE.Mesh(
-            new THREE.RingGeometry(x-EXCLUSION_ZONE_WIDTH, x, 4, 4, Math.PI/4), // 32 being the number of segments.
-            new THREE.MeshBasicMaterial({ color: 0xFFB800, transparent: true, opacity: 0.5, side: THREE.FrontSide }) // A wireframe helps visualise the large mesh
-        );
-        mesh.add( new THREE.Mesh( // Occlusion mask
-            new THREE.PlaneGeometry(size, size, 20, 20), 
+    _.createVerticalPlane = function (width, height) {
+        debug("LoadAR.createVerticalPlane: ");
+        
+        var geometries = [
+            new THREE.PlaneGeometry(width + EXCLUSION_ZONE_WIDTH, EXCLUSION_ZONE_WIDTH), // horizontal
+            new THREE.PlaneGeometry(EXCLUSION_ZONE_WIDTH, height - EXCLUSION_ZONE_WIDTH) // vertical
+        ]
+        var material = new THREE.MeshBasicMaterial({ color: 0xFFB800, transparent: true, opacity: 0, side: THREE.FrontSide });
+        
+        
+        let mesh = new THREE.Mesh( // Occlusion mask
+            new THREE.PlaneGeometry(width, height, 20, 20), 
             new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0, side: THREE.BackSide })
-        ));
+        );
+        mesh.add(new THREE.Mesh(new THREE.Geometry().copy(geometries[0]).translate(0, height / 2, 0), material));
+        mesh.add(new THREE.Mesh(geometries[0].translate(0, -height / 2, 0), material));
+        mesh.add(new THREE.Mesh(new THREE.Geometry().copy(geometries[1]).translate(width / 2, 0, 0), material));
+        mesh.add(new THREE.Mesh(geometries[1].translate(-width / 2, 0, 0), material));
+
         mesh.position.set(10000, 10000, 10000);
 
         _.scene.add(mesh);
@@ -588,8 +629,8 @@ function LoadAR() {
 
     _.node = function (string = 'Lorem ipsum dolor sit amet') {
         var spriteMap = new THREE.TextureLoader();
-        var _symbol = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteMap.load("../core/img/i_exclam_white.png"), color: 0xffffff, opacity: 1, transparent: true }));
-        var spriteMaterial = new THREE.SpriteMaterial({ map: spriteMap.load("../core/img/ball2.png"), color: COLOUR_NODE_WARNING, opacity: 0.4 , transparent: true});
+        var _symbol = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteMap.load("../core/img/i_info_white.png"), color: 0xffffff, opacity: 1, transparent: true }));
+        var spriteMaterial = new THREE.SpriteMaterial({ map: spriteMap.load("../core/img/ball2.png"), color: COLOUR_NODE_WARNING, opacity: 0.95 , transparent: true});
         var _node = new THREE.Sprite(spriteMaterial);
         _node.scale.multiplyScalar(0.15);
         _node.add(_symbol);  
@@ -604,19 +645,17 @@ function LoadAR() {
 
         setTimeout(function () { _.checkAtCast(); }, VIEW_CAST_INTERVAL);
         
-        raycaster.setFromCamera(new THREE.Vector2(0,0.15), _.camera);
+        raycaster.setFromCamera(new THREE.Vector2(), _.camera); // Vector2 args 0,0.15 creates a point in the centre of the s8 but not the pixel. worth investigating..
         var intersect = raycaster.intersectObjects(_.nodes,false);
         
         if (intersect.length === 0) { // Breaks the function if the raycast returns empty
             debug(`LoadAR.checkAtCast: Nothing found`);
+            _.nodeSelected = null;
             return;
         }
-        else
-        {
-            debug(`LoadAR.checkAtCast: Object found`);
-        }
-        debug(`LoadAR.checkAtCast:${nodeDictionary[intersect[0].object.id]}`);
-        
+        debug(`LoadAR.checkAtCast: Object found: ${nodeDictionary[intersect[0].object.id]}`);
+        _.nodeSelected = intersect[0].object.id;
+        _.clock.start();
     };
 
     /* ==========================================================================
@@ -638,23 +677,27 @@ function LoadAR() {
     };
 
     _.onFooterButtonClick = function (e) {
-        debug("LoadAR.onFooterButtonClick:");
 
         switch (_.state) 
         {
             case "splash":
+                {
+                    debug("LoadAR.onFooterButtonClick: Splash");
 
-                // initialize the app
-                app.initialize();
-                setTimeout(function () {
-                    // go to the detect state
-                    _.gotoState("#/d");
-                }, 50);
+                    // initialize the app
+                    app.initialize();
+                    setTimeout(function () {
+                        // go to the detect state
+                        _.gotoState("#/d");
+                    }, 50);
 
-                break;
+                    break;
+                }
 
             case "detect":
                 {
+                    debug("LoadAR.onFooterButtonClick: Detect");
+
                     var condition = true;
                     //var condition = _.callStrokeWidthTransform();
 
@@ -662,10 +705,10 @@ function LoadAR() {
                     {
                         debug("LoadAR.onFooterButtonClick: Calling OpenALPR");
                         
-                        //_.openALPRReady = true; // If enabled will call ALPR in the update function so that it avoids parsing bad data
+                        _.openALPRReady = true; // If enabled will call ALPR in the update function so that it avoids parsing bad data
                         _.poseCache.copy(_.camera);
 
-                        _.callALPR();
+                        //_.callALPR();
 
                     }
                     break;
@@ -673,6 +716,13 @@ function LoadAR() {
 
             case "view":
                 {
+                    debug("LoadAR.onFooterButtonClick: View");
+
+                    if (nodeSelected !== null)
+                    {
+                        // do something interesting with the node
+                        // disable raycast functions or something
+                    }
                     break;
                 }
         }

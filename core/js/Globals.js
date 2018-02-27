@@ -26,9 +26,12 @@ var RENDER_GROUND = false; // toggle rendering planes or not as a 3D object for 
 var DISPLAY_PANEL_RESOLUTION = 256;
 var SCREEN_WIDTH = window.innerWidth;
 var SCREEN_HEIGHT = window.innerHeight;
-var VIEW_CAST_INTERVAL = 1000; // the frequency with which the program casts a ray to search for objects
+var VIEW_CAST_INTERVAL = 500; // the frequency with which the program casts a ray to search for objects, 1000 being a full second
 var EXCLUSION_ZONE_RADIUS = 1.4;
 var EXCLUSION_ZONE_WIDTH = EXCLUSION_ZONE_RADIUS * 1.1 - EXCLUSION_ZONE_RADIUS;
+
+var NODE_SIZE = 0.15; // default size of a node, 15% of the sprite
+var NODE_SIZE_SELECTED = 0.25; // when 'selected' a node shall double in size. these values are largely arbitrary and can be changed ot whatever feels appropriate
 
 var AR_SUPPORTED = false; // flag for AR not supported
 var APP_INITIALIZED = false; // flag for app initialization
@@ -36,7 +39,7 @@ var APP_INITIALIZED = false; // flag for app initialization
 var GROUND_PLANE_FOUND = false; // flag for ground plane found
 var UPDATE_VR_RUNNING = false; // flag for ground plane found
 var PLATE_FOUND = false; // flag for plate found
-var PLATE_DEBUG_MODE = true;
+var PLATE_DEBUG_MODE = false;
 
 // messages
 var MESSAGE_DETECTING_GROUND = "<span>Detecting ground ...</span><b>Move phone around</b> to detect ground plane"

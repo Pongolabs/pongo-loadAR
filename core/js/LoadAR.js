@@ -696,6 +696,7 @@ function LoadAR() {
 
                     if (_.nodeSelected === null) {
                         $("#container").attr("data-plate-display", false);
+                        $("#output").html(""); //clear and hide output
                     }
                     else
                     {

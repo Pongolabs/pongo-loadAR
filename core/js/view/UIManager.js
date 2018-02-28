@@ -53,6 +53,10 @@ function UIManager() {
 
         document.getElementById("footer-button-center").removeEventListener('click', app.onFooterButtonClick);
         document.getElementById("footer-button-center").addEventListener('click', app.onFooterButtonClick);
+
+        document.getElementById("footer-button-right").removeEventListener('click', app.onFooterButtonRightClick);
+        document.getElementById("footer-button-right").addEventListener('click', app.onFooterButtonRightClick);
+
     }
 
     _.render = function ()

@@ -22,7 +22,7 @@ var COLOUR_NODE_WARNING = 0xff7f00;
 var COLOUR_NODE_URGENT = 0xff0000;
 var COLOUR_NODE_DEFAULT = 0xff0000;
 var GROUND_SCALE = 15; //the factor by which to multiply the initial ground plane
-var RENDER_GROUND = false; // toggle rendering planes or not as a 3D object for debugging
+var RENDER_GROUND = true; // toggle rendering planes or not as a 3D object for debugging
 var DISPLAY_PANEL_RESOLUTION = 256;
 var SCREEN_WIDTH = window.innerWidth;
 var SCREEN_HEIGHT = window.innerHeight;
@@ -39,7 +39,7 @@ var APP_INITIALIZED = false; // flag for app initialization
 var GROUND_PLANE_FOUND = false; // flag for ground plane found
 var UPDATE_VR_RUNNING = false; // flag for ground plane found
 var PLATE_FOUND = false; // flag for plate found
-var PLATE_DEBUG_MODE = false;
+var PLATE_DEBUG_MODE = true;
 
 // messages
 var MESSAGE_DETECTING_GROUND = "<span>Detecting ground ...</span><b>Move phone around</b> to detect ground plane"

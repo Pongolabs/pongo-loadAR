@@ -103,6 +103,19 @@
     background-size: 42px 42px;
 }
 
+#footer-button-right {
+    width: 74px;
+    height: 74px;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: 42px 42px;
+    position: absolute;
+    right: 32px;
+    bottom: 32px;
+    display: none;
+    background-image: url('../img/i_cross_blue.png');
+}
+
 #notification 
 {
     background-color: rgba(0,0,0,0.75);
@@ -161,6 +174,10 @@
 }
  
 /* detect */
+#container[data-state="detect"] #footer-button-right {
+    display: block;
+}
+
 #container[data-state="detect"][data-ground-plane-found="true"] #footer {
     display: block;
 }
@@ -189,5 +206,9 @@
 
 /* view */
 #container[data-state="view"] #footer {
+    display: block;
+}
+
+#container[data-state="view"] #footer-button-right {
     display: block;
 }

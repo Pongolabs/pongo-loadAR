@@ -15,7 +15,7 @@ function LoadAR() {
     var renderer;
     var truckMesh; //the 3D cube used to represent the truck in the 3D space
     var truckBackPanel;
-    var groundPlane; // global container for the first discovered plane object
+    var groundPlane; // global container for the first discovered plane object, updates to be the largest plane on discovery
     var groundPlaneMesh; // represents the 3DPlane in the worldspace
     var nodes; // A collection of our object3Ds that are placed around the instance to designate various information as well as having usable functions
     var nodeDictionary = new Object(); // An object acting as a dictionary of nodes indexed using their unique id as a key
@@ -57,6 +57,8 @@ function LoadAR() {
                 UIManager().wireUpEvents();
                 UIManager().render();
 
+                // Bind our event handlers
+                window.addEventListener('resize', _.onWindowResize, false);
                 break;
             }
 
@@ -114,6 +116,8 @@ function LoadAR() {
                 _.placeObjectAtDistance(_.truckBackPanel, 1.6);
                 _.placeObjectAtDistance(_node, 1.55); // Set this a little short of the truck back panel, so the two don't intersect weirdly
                 if (_.groundPlaneMesh !== null) {
+                    debug(`LoadAR.setState: Moving the truckPanel to groundPlane Y: ${_.groundPlaneMesh.position.y} from camera position Y: ${_.camera.position.y}`);
+
                     _.truckBackPanel.position.setY(_.groundPlaneMesh.position.y + TRUCK_MAX_HEIGHT / 2);
                     _node.position.setY(_.groundPlaneMesh.position.y + TRUCK_MAX_HEIGHT / 3);
                 }
@@ -239,56 +243,10 @@ function LoadAR() {
 
             debug("LoadAR.initialize: bind event handlers");
 
-            // Bind our event handlers
-            window.addEventListener('resize', _.onWindowResize, false);
+            _.bindAREvents();
             
             // Logs the addition of the first discovered plane and creates a mesh to use as the ground, places it overlapping the initial plane
-            debug("Searching for a plane. . .");
-            _.vrDisplay.addEventListener('planesadded', e => {
-                debug(`Planes added for ${e.display}`);
-
-                GROUND_PLANE_FOUND = true;
-                _.drawCursor();
-                UIManager().render();
-
-                _.groundPlane = null;
-                debug("Creating ground plane mesh. . .");
-                _.groundPlaneMesh = _.createPlane();
-                _.groundPlaneMesh.visible = false;
-                debug("Mesh created succesfully");
-
-                e.planes.forEach(plane => {
-                    /*debug(`
-                    Added plane ${plane.identifier} at ${plane.modelMatrix}, 
-                    with extent ${plane.extent} with vertices ${plane.vertices}
-                    `);*/
-                    debug("Plane found!");
-                    _.groundPlane = plane;
-                    _.extendGroundPlane(plane);
-
-                });
-                
-                // update notification 
-                UIManager().showNotification(MESSAGE_DETECTING_PLATE);
-
-            }, { once: true });
-
-            _.vrDisplay.addEventListener('planesupdated', e => {
-                e.planes.forEach(plane => {
-                    // Compares a newly updated plane to the current groundPlane. If it's larger, will update the position of the mesh
-                    if (_.groundPlane.identifier !== _.plane.identifier && _.plane.extent[0] * plane.extent[1] > _.groundPlane.extent[0] * _.groundPlane.extent[1]) {
-                        try {
-                            _.extendGroundPlane(plane);
-                            _.groundPlane = plane; //saves a global instance of the VRPlane we will use as the ground
-                            debug("Larger plane discovered, relocating ground mesh to plane id: ${plane.identifier}");
-                        }
-                        catch (error) {
-                            debug("Failed");
-                        }
-                    }
-                });
-            });
-            //_.drawCursor();
+            debug("ARCore: Searching for a plane. . .");
 
             // Initialise the raycaster object
             raycaster = new THREE.Raycaster();
@@ -301,6 +259,8 @@ function LoadAR() {
             {
                 UIManager().showNotification(MESSAGE_DETECTING_GROUND);
             }
+            //else UIManager().showNotification(MESSAGE_DETECTING_PLATE);
+
 
             // apply UI state
             UIManager().render();
@@ -676,12 +636,28 @@ function LoadAR() {
         _.renderer.setSize(window.innerWidth, window.innerHeight);
     };
 
+    
+    _.onFooterButtonRightClick = function (e) {
+        
+        switch (_.state) 
+        {
+            case "detect":
+                location.reload(true);
+
+                break;
+
+            case "view":
+                location.reload(true);
+
+                break;
+        }
+    }
+
     _.onFooterButtonClick = function (e) {
 
         switch (_.state) 
         {
             case "splash":
-                {
                     debug("LoadAR.onFooterButtonClick: Splash");
 
                     // initialize the app
@@ -692,7 +668,6 @@ function LoadAR() {
                     }, 50);
 
                     break;
-                }
 
             case "detect":
                 {
@@ -726,6 +701,76 @@ function LoadAR() {
                     break;
                 }
         }
+    };
+
+    _.bindAREvents = function () {
+        _.vrDisplay.addEventListener('planesupdated', e => {
+            e.planes.forEach(plane => {
+                // Compares a newly updated plane to the current groundPlane. If it's larger, will update the position of the mesh
+                if (_.groundPlane.identifier !== _.plane.identifier && _.plane.extent[0] * plane.extent[1] > _.groundPlane.extent[0] * _.groundPlane.extent[1]) {
+                    try {
+                        _.extendGroundPlane(plane);
+                        _.groundPlane = plane; //saves a global instance of the VRPlane we will use as the ground
+                        debug(`ARCore: Larger plane discovered, relocating ground mesh to plane id: ${plane.identifier}`);
+                    }
+                    catch (error) {
+                        debug("Failed");
+                    }
+                }
+            });
+        });
+
+        debug(`LoadAR.bindAREvents Prediscovered planes:${_.vrDisplay.getPlanes().length} `);
+        if (_.vrDisplay.getPlanes().length > 0) // catch planes discovered in 'splash' state
+        {
+            GROUND_PLANE_FOUND = true;
+            _.drawCursor();
+            UIManager().render();
+
+            _.groundPlane = null;
+            debug("Creating ground plane mesh. . .");
+            _.groundPlaneMesh = _.createPlane();
+            _.groundPlaneMesh.visible = RENDER_GROUND;
+            debug("Mesh created succesfully");
+
+            _.vrDisplay.getPlanes().forEach(plane => {
+                debug("Plane found!");
+                _.groundPlane = plane;
+                _.extendGroundPlane(plane);
+
+            });
+            UIManager().showNotification(MESSAGE_DETECTING_PLATE);
+            return;
+        }
+        _.vrDisplay.addEventListener('planesadded', e => {
+            debug(`ARCore: Planes added for ${e.display}`);
+
+            GROUND_PLANE_FOUND = true;
+            _.drawCursor();
+            UIManager().render();
+
+            _.groundPlane = null;
+            debug("Creating ground plane mesh. . .");
+            _.groundPlaneMesh = _.createPlane();
+            _.groundPlaneMesh.visible = RENDER_GROUND;
+            debug("Mesh created succesfully");
+
+            e.planes.forEach(plane => {
+                /*debug(`
+                Added plane ${plane.identifier} at ${plane.modelMatrix}, 
+                with extent ${plane.extent} with vertices ${plane.vertices}
+                `);*/
+                debug("Plane found!");
+                _.groundPlane = plane;
+                _.extendGroundPlane(plane);
+
+            });
+
+            UIManager().showNotification(MESSAGE_DETECTING_PLATE);
+            
+        }, { once: true });
+
+        
     };
 
     /* ==========================================================================

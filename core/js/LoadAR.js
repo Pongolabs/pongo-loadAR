@@ -18,7 +18,7 @@ function LoadAR() {
     var groundPlane; // global container for the first discovered plane object, updates to be the largest plane on discovery
     var groundPlaneMesh; // represents the 3DPlane in the worldspace
     var nodes; // A collection of our object3Ds that are placed around the instance to designate various information as well as having usable functions
-    var nodeDictionary = new Object(); // An object acting as a dictionary of nodes indexed using their unique id as a key
+    var nodeDictionary // An object acting as a dictionary of nodes indexed using their unique id as a key
     var axesDisplay;
     var poseCache;
     var raycaster;
@@ -253,6 +253,7 @@ function LoadAR() {
 
             // Initialise the nodes array
             _.nodes = [];
+            _.nodeDictionary = new Object();
 
             // show notification
             if (GROUND_PLANE_FOUND === false)
@@ -583,7 +584,7 @@ function LoadAR() {
 
     _.updateNode = function (_node, _string) {
         // Stores the id of a node along with a string in a dictionary where the key to access it is the node's id
-        nodeDictionary[_node.id] = _string;
+        _.nodeDictionary[_node.id] = _string;
         debug(`LoadAR.attachNode: Node id: ${_node.id} added with message ${_string}`);
     };
 
@@ -605,7 +606,7 @@ function LoadAR() {
 
         setTimeout(function () { _.checkAtCast(); }, VIEW_CAST_INTERVAL);
         
-        raycaster.setFromCamera(new THREE.Vector2(), _.camera); // Vector2 args 0,0.15 creates a point in the centre of the s8 but not the pixel. worth investigating..
+        raycaster.setFromCamera(new THREE.Vector2(), _.camera);
         var intersect = raycaster.intersectObjects(_.nodes,false);
         
         if (intersect.length === 0) { // Breaks the function if the raycast returns empty
@@ -613,9 +614,9 @@ function LoadAR() {
             _.nodeSelected = null;
             return;
         }
-        debug(`LoadAR.checkAtCast: Object found: ${nodeDictionary[intersect[0].object.id]}`);
+
         _.nodeSelected = intersect[0].object.id;
-        _.clock.start();
+        debug(`LoadAR.checkAtCast: Object found: ${_.nodeDictionary[_.nodeSelected]}`);
     };
 
     /* ==========================================================================
@@ -693,11 +694,17 @@ function LoadAR() {
                 {
                     debug("LoadAR.onFooterButtonClick: View");
 
-                    if (nodeSelected !== null)
+                    if (_.nodeSelected === null) {
+                        $("#container").attr("data-plate-display", false);
+                    }
+                    else
                     {
+                        let output = `<span>Vehicle found with plate: </span><br><br><b>${_.nodeDictionary[_.nodeSelected]}</b><br><br><br>Press button again to return to viewing or 'X' to restart`;
                         // do something interesting with the node
                         // disable raycast functions or something
+                        UIManager().showOutput(output);
                     }
+                    
                     break;
                 }
         }

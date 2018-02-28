@@ -143,6 +143,34 @@
     display: block;
 }
 
+#output {
+    width: 100%;
+    width: calc(100% - 32px);
+    height: 100%;
+    height: calc(100% - 248px);
+    font-weight: 400;
+    position: absolute;
+    top: 114px;
+    left: 16px;
+    border-radius: 4px;
+    background-color: rgba(0,0,0,0.75);
+    color: #fff;
+    font-size: 14px;
+    font-family: Quicksand, Lato, Arial;
+    padding: 18px;
+    box-sizing: border-box;
+    line-height: 18px;
+    border: none;
+    display: none;
+}
+
+#output span {
+    color: #F8931F;
+    font-weight: 700;
+    display: block;
+}
+
+
 #target {
     width: 120px;
     height: 120px;
@@ -203,6 +231,19 @@
     background-position: center center;
     display: block;
 }
+
+#container[data-state="view"][data-plate-found=true][data-plate-display=true] #target {
+    display: none;
+}
+
+#container[data-state="view"][data-plate-found=true][data-plate-display=true] #debug {
+    display: none;
+}
+
+#container[data-state="view"][data-plate-found=true][data-plate-display=true] #output {
+    display: block;
+}
+
 
 /* view */
 #container[data-state="view"] #footer {

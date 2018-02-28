@@ -85,6 +85,16 @@ function UIManager() {
         $("#notification").fadeIn();
     }
 
+    _.showOutput = function (outputMessage) {
+        debug("UIManager.showOutput: " + outputMessage);
+
+        $("#container").attr("data-plate-display", true);
+        $("#output").html(outputMessage);
+        $("#output").fadeIn();
+    }
+
+    
+
     _.hideNotification = function ()
     {
         debug("UIManager.hideNotification: ");
